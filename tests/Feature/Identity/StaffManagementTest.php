@@ -62,7 +62,7 @@ final class StaffManagementTest extends TestCase
                 ->where('auth.can.manageStaff', true)
                 ->has('staffAccounts.data', 1)
                 ->has('roles', 4)
-                ->has('permissions', 17));
+                ->has('permissions', 18));
     }
 
     public function test_role_without_manage_staff_permission_cannot_open_or_submit_management_screen(): void

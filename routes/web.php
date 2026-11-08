@@ -113,11 +113,19 @@ Route::middleware(['auth', 'no-store', 'staff.permission:'.CorePermission::Acces
             Route::post('/cache/clear', ClearApplicationCacheController::class)->name('cache.clear');
             Route::post('/maintenance', [MaintenanceController::class, 'enable'])->name('maintenance.enable');
             Route::delete('/maintenance', [MaintenanceController::class, 'disable'])->name('maintenance.disable');
-            Route::post('/updates/check', [UpdatesController::class, 'check'])->name('updates.check');
-            Route::put('/updates/automatic', [UpdatesController::class, 'setAutomatic'])->name('updates.automatic');
             Route::post('/scheduler/cron', [SchedulerSettingsController::class, 'configureCron'])->name('scheduler.cron');
             Route::post('/demo-data', [DemoDataController::class, 'store'])->name('demo-data.store');
             Route::delete('/demo-data', [DemoDataController::class, 'destroy'])->name('demo-data.destroy');
+        });
+
+    Route::prefix('/panel/settings/updates')
+        ->name('panel.settings.updates.')
+        ->middleware('staff.permission:'.CorePermission::ManageUpdates->value)
+        ->group(function (): void {
+            Route::post('/check', [UpdatesController::class, 'check'])->name('check');
+            Route::put('/automatic', [UpdatesController::class, 'setAutomatic'])->name('automatic');
+            Route::post('/install', [UpdatesController::class, 'install'])->name('install');
+            Route::post('/advance', [UpdatesController::class, 'advance'])->name('advance');
         });
 
     Route::get('/panel/settings/tabs/{tab}', [RenderedSettingsTabController::class, 'show'])

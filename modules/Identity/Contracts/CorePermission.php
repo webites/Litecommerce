@@ -21,6 +21,7 @@ enum CorePermission: string
     case ManageContent = 'core.content.manage';
     case ManageExtensions = 'core.extensions.manage';
     case ManageThemes = 'core.themes.manage';
+    case ManageUpdates = 'core.updates.manage';
     case UseTestOrders = 'core.test_orders.use';
     case ViewAudit = 'core.audit.view';
 }

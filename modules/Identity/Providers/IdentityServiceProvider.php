@@ -82,6 +82,7 @@ final class IdentityServiceProvider extends ServiceProvider
             new PermissionDefinition(CorePermission::ManageContent->value, 'Zarządzanie treścią', 'Treści', [$administrator, $manager, $content]),
             new PermissionDefinition(CorePermission::ManageExtensions->value, 'Zarządzanie rozszerzeniami', 'Rozszerzenia', [$administrator]),
             new PermissionDefinition(CorePermission::ManageThemes->value, 'Zarządzanie motywami', 'Motywy', [$administrator]),
+            new PermissionDefinition(CorePermission::ManageUpdates->value, 'Aktualizacje sklepu', 'Sklep', [$administrator]),
             new PermissionDefinition(CorePermission::UseTestOrders->value, 'Korzystanie z trybu testowego', 'Testy', [$administrator]),
             new PermissionDefinition(CorePermission::ViewAudit->value, 'Wyświetlanie historii działań', 'Bezpieczeństwo', [$administrator, $manager]),
         ];
