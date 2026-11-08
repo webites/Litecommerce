@@ -4,6 +4,12 @@ All notable changes to Litecommerce are listed here. The project follows
 [Semantic Versioning](https://semver.org/). While the version is below 1.0.0,
 minor versions may contain breaking changes.
 
+## 0.1.2 - 2026-11-08
+
+- The installer sets `APP_NAME` to Litecommerce when the environment file has none.
+- Browser tab titles use the application name from the server instead of a build-time value (they ended with "Laravel" in release packages).
+- Panel page headers: the title and its description now fit the top bar instead of being cut by its border; titles are one size on every screen.
+
 ## 0.1.1 - 2026-11-08
 
 - Panel footer with a thank-you note and the installed version.

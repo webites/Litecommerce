@@ -4,7 +4,7 @@
  */
 export default function PageHeader({ title, description, actions, breadcrumbs }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'var(--font-body)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontFamily: 'var(--font-body)' }}>
             {breadcrumbs}
             <div className="lc-page-header-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div>
@@ -12,7 +12,8 @@ export default function PageHeader({ title, description, actions, breadcrumbs })
                         style={{
                             fontFamily: 'var(--font-display)',
                             fontWeight: 700,
-                            fontSize: 'var(--text-2xl)',
+                            fontSize: 'var(--text-xl)',
+                            lineHeight: 'var(--leading-tight)',
                             color: 'var(--text-primary)',
                             letterSpacing: 'var(--tracking-tight)',
                         }}
@@ -20,7 +21,7 @@ export default function PageHeader({ title, description, actions, breadcrumbs })
                         {title}
                     </div>
                     {description && (
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{description}</div>
+                        <div style={{ fontSize: 13, lineHeight: 'var(--leading-snug)', color: 'var(--text-secondary)', marginTop: 2 }}>{description}</div>
                     )}
                 </div>
                 {actions && <div className="lc-page-header-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>{actions}</div>}

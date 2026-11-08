@@ -114,12 +114,12 @@ export default function AuthenticatedLayout({ header, children }) {
                 <div
                     className="lc-topbar"
                     style={{
-                        height: 'var(--layout-topbar-h)',
+                        minHeight: 'var(--layout-topbar-h)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: 16,
-                        padding: '0 24px',
+                        padding: '6px 24px',
                         borderBottom: '1px solid var(--border-subtle)',
                         flexShrink: 0,
                         background: 'var(--bg-surface)',

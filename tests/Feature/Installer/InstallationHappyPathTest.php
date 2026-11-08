@@ -36,6 +36,7 @@ final class InstallationHappyPathTest extends TestCase
 
         $env = (string) file_get_contents(app(EnvFileWriter::class)->path());
         $this->assertStringContainsString('APP_URL=http://localhost', $env);
+        $this->assertStringContainsString('APP_NAME=Litecommerce', $env);
         $this->assertStringContainsString('APP_ENV=production', $env);
         $this->assertStringContainsString('APP_DEBUG=false', $env);
 

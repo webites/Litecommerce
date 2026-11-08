@@ -31,12 +31,21 @@ final class EnvFileWriter
         $this->set('DB_PASSWORD', $credentials['password']);
     }
 
-    /** Records where the shop lives (asset and e-mail links are built from it) and switches off debug output. */
+    /** Records where the shop lives (asset and e-mail links are built from it), names the application and switches off debug output. */
     public function writeApplicationSettings(string $url): void
     {
+        if (! preg_match('/^APP_NAME=(?!Laravel$)\S/m', $this->contents())) {
+            $this->set('APP_NAME', 'Litecommerce');
+        }
+
         $this->set('APP_URL', rtrim($url, '/'));
         $this->set('APP_ENV', 'production');
         $this->set('APP_DEBUG', 'false');
+    }
+
+    private function contents(): string
+    {
+        return file_exists($this->path) ? (string) file_get_contents($this->path) : '';
     }
 
     private function set(string $key, string $value): void
