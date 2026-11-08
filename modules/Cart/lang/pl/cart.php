@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Koszyk',
+    'heading' => 'Koszyk',
+    'empty_title' => 'Twój koszyk jest pusty',
+    'empty_text' => 'Nic tu jeszcze nie ma. Przejrzyj katalog i dodaj pierwsze produkty.',
+    'browse_products' => 'Przeglądaj produkty',
+    'table_product' => 'Produkt',
+    'table_quantity' => 'Ilość',
+    'table_price' => 'Cena',
+    'table_total' => 'Razem',
+    'decrease_quantity' => 'Zmniejsz ilość',
+    'increase_quantity' => 'Zwiększ ilość',
+    'quantity' => 'Ilość',
+    'unavailable_prefix' => 'niedostępny:',
+    'remove' => 'Usuń',
+    'coupon_code_label' => 'Kod rabatowy',
+    'coupon_pin_label' => 'PIN (jeśli wymagany)',
+    'add_coupon' => 'Dodaj kod',
+    'coupon_added' => 'Dodano kod.',
+    'subtotal' => 'Suma częściowa',
+    'discount' => 'Rabat',
+    'total' => 'Razem',
+    'go_to_checkout' => 'Przejdź do checkoutu',
+    'go_to_cart' => 'Przejdź do koszyka',
+    'loading' => 'Ładowanie…',
+];

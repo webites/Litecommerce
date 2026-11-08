@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+@import './design-tokens.css';
+
+@plugin '@tailwindcss/forms';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.lc-mobile-menu-button,
+.lc-sidebar-overlay {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .lc-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 50;
+        width: min(var(--layout-sidebar-w), calc(100vw - 48px)) !important;
+        transform: translateX(-100%);
+        transition: transform 180ms ease;
+        box-shadow: var(--shadow-lg, var(--shadow-sm));
+    }
+
+    .lc-sidebar--open {
+        transform: translateX(0);
+    }
+
+    .lc-sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        border: 0;
+        background: rgba(0, 0, 0, 0.45);
+        cursor: pointer;
+    }
+
+    .lc-mobile-menu-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-control);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        cursor: pointer;
+    }
+
+    .lc-topbar {
+        height: auto !important;
+        min-height: var(--layout-topbar-h);
+        padding: 10px 16px !important;
+    }
+}
+
+@media (max-width: 639px) {
+    .lc-page-header-row,
+    .lc-card-header {
+        flex-wrap: wrap;
+    }
+
+    .lc-page-header-actions {
+        width: 100%;
+    }
+}
+
+.lc-wysiwyg-tool {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.lc-wysiwyg-tool:hover { background: var(--gray-3); color: var(--text-primary); }
+.lc-wysiwyg-tool[aria-pressed='true'] { background: var(--gray-3); color: var(--text-primary); border-color: var(--border-default); }
+.lc-wysiwyg-source { display: block; width: 100%; min-height: 320px; padding: 16px; border: 0; outline: none; resize: vertical; background: var(--bg-surface); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; line-height: 1.5; }
+.lc-wysiwyg-content table { border-collapse: collapse; width: 100%; }
+.lc-wysiwyg-content th, .lc-wysiwyg-content td { border: 1px solid var(--border-default); padding: 6px 10px; }
+.lc-wysiwyg-content img { max-width: 100%; height: auto; }
+.lc-wysiwyg-content hr { border: 0; border-top: 1px solid var(--border-default); margin: 16px 0; }
+.lc-wysiwyg-content { min-height: 320px; padding: 16px; color: var(--text-primary); line-height: 1.65; outline: none; }
+.lc-wysiwyg-content h2 { font-size: 24px; font-weight: 600; }
+.lc-wysiwyg-content h3 { font-size: 20px; font-weight: 600; }
+.lc-wysiwyg-content h4 { font-size: 17px; font-weight: 600; }
+.lc-wysiwyg-content ul { list-style: disc; padding-left: 24px; }
+.lc-wysiwyg-content ol { list-style: decimal; padding-left: 24px; }
+.lc-wysiwyg-content blockquote { border-left: 3px solid var(--brand-solid); padding-left: 16px; color: var(--text-secondary); }
+.lc-wysiwyg-content pre { overflow-x: auto; padding: 12px; border-radius: 8px; background: var(--bg-subtle); font-family: var(--font-mono); }

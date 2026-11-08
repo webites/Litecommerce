@@ -1,0 +1,13 @@
+{
+    "id": "react-storefront",
+    "name": "Storefront React",
+    "version": "1.0.0",
+    "type": "theme",
+    "engine": "blade-react",
+    "core": "*",
+    "supports_dark_mode": true,
+    "menu_locations": [
+        { "id": "primary", "label": "Menu główne" },
+        { "id": "footer", "label": "Stopka" }
+    ]
+}

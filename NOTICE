@@ -1,0 +1,21 @@
+Litecommerce
+Copyright (c) 2026 weBites
+Licensed under the MIT License (see LICENSE).
+
+This product depends on third-party packages installed through Composer and
+npm. Each keeps its own license, which is shipped with the package in vendor/
+and node_modules/. The packages below are not MIT and are listed on purpose.
+
+PHP packages (production dependencies)
+
+- dompdf/dompdf - LGPL-2.1
+- dompdf/php-font-lib - LGPL-2.1-or-later
+- dompdf/php-svg-lib - LGPL-3.0-or-later
+  Used unmodified as Composer dependencies. Their source is available from
+  https://github.com/dompdf. You may replace these libraries with your own
+  build of a compatible version.
+- nette/schema, nette/utils - BSD-3-Clause (offered by the authors under
+  BSD-3-Clause or GPL-2.0/GPL-3.0; Litecommerce uses them under BSD-3-Clause)
+
+All other production dependencies are under MIT, BSD-2-Clause, BSD-3-Clause
+or Apache-2.0. The npm dependencies have not been audited for this notice yet.

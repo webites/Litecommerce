@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Cart',
+    'heading' => 'Cart',
+    'empty_title' => 'Your cart is empty',
+    'empty_text' => 'Nothing here yet. Browse the catalog and add your first products.',
+    'browse_products' => 'Browse products',
+    'table_product' => 'Product',
+    'table_quantity' => 'Quantity',
+    'table_price' => 'Price',
+    'table_total' => 'Total',
+    'decrease_quantity' => 'Decrease quantity',
+    'increase_quantity' => 'Increase quantity',
+    'quantity' => 'Quantity',
+    'unavailable_prefix' => 'unavailable:',
+    'remove' => 'Remove',
+    'coupon_code_label' => 'Discount code',
+    'coupon_pin_label' => 'PIN (if required)',
+    'add_coupon' => 'Add code',
+    'coupon_added' => 'Code added.',
+    'subtotal' => 'Subtotal',
+    'discount' => 'Discount',
+    'total' => 'Total',
+    'go_to_checkout' => 'Go to checkout',
+    'go_to_cart' => 'Go to cart',
+    'loading' => 'Loading…',
+];

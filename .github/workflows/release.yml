@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches config/version.php
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          actual="$(php -r "echo (require 'config/version.php')['current'];")"
+          if [ "$expected" != "$actual" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match config/version.php ($actual)." >&2
+            exit 1
+          fi
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, intl, gd, zip, sodium, pdo_mysql
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies and build assets
+        run: |
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+          npm ci --no-audit --no-fund
+          npm run build
+          npm run build:react-theme
+          rm -rf node_modules
+
+      - name: Build and sign the release archive
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: php artisan updates:build-release "${GITHUB_REF_NAME#v}" --output=release --upgrade-from=0.1.0
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/litecommerce-*.zip release/litecommerce-*.zip.sha256 \
+            --title "Litecommerce ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag
