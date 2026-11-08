@@ -5,6 +5,7 @@ return [
     'sidebar_close_nav' => 'Zamknij nawigację',
     'dark_mode' => 'Tryb ciemny',
     'profile' => 'Profil',
+    'footer_thanks' => 'Dziękujemy za korzystanie z Litecommerce :version',
     'logout' => 'Wyloguj',
     'nav_dashboard' => 'Panel główny',
     'section_catalog' => 'Katalog',

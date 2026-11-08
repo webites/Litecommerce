@@ -4,6 +4,12 @@ All notable changes to Litecommerce are listed here. The project follows
 [Semantic Versioning](https://semver.org/). While the version is below 1.0.0,
 minor versions may contain breaking changes.
 
+## 0.1.1 - 2026-11-08
+
+- Panel footer with a thank-you note and the installed version.
+- Panel messages: a banner on every panel page and a message list on the dashboard (an available update is announced until it is installed), plus a registry for modules and plugins to publish their own messages.
+- New database table `panel_message_reads` (added by the update migration).
+
 ## 0.1.0 - 2026-11-08
 
 First public release.

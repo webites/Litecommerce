@@ -1,5 +1,6 @@
 import Avatar from '@/Components/ui/Avatar';
 import Alert from '@/Components/ui/Alert';
+import PanelMessageBanner from '@/Components/panel/PanelMessageBanner';
 import RequestErrorNotice from '@/Components/panel/RequestErrorNotice';
 import DropdownMenu from '@/Components/ui/DropdownMenu';
 import LocaleSwitcher from '@/Components/ui/LocaleSwitcher';
@@ -28,7 +29,7 @@ function useTheme() {
 }
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { auth, settingsTabs = [], maintenance = null } = usePage().props;
+    const { auth, settingsTabs = [], maintenance = null, appVersion = '', panelBanner = null } = usePage().props;
     const { user, can } = auth;
     const [dark, setDark] = useTheme();
     const [navigationOpen, setNavigationOpen] = useState(false);
@@ -164,8 +165,23 @@ export default function AuthenticatedLayout({ header, children }) {
                         <Alert tone="warning">{maintenance.reason === 'update' ? t('maintenance.banner_update') : t('maintenance.banner_manual')}</Alert>
                     </div>
                 )}
+                {!route().current('dashboard') && <PanelMessageBanner banner={panelBanner} />}
                 <RequestErrorNotice />
                 <main style={{ flex: 1, overflowY: 'auto' }}>{children}</main>
+                <footer
+                    style={{
+                        flexShrink: 0,
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        padding: '8px 24px',
+                        borderTop: '1px solid var(--border-subtle)',
+                        background: 'var(--bg-surface)',
+                        fontSize: 12,
+                        color: 'var(--text-tertiary)',
+                    }}
+                >
+                    {t('app.footer_thanks', 'Thank you for using Litecommerce :version', { version: appVersion })}
+                </footer>
             </div>
         </div>
     );

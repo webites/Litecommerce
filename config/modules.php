@@ -18,6 +18,7 @@ use Litecommerce\Modules\Identity\Providers\IdentityServiceProvider;
 use Litecommerce\Modules\Installer\Providers\InstallerServiceProvider;
 use Litecommerce\Modules\Maintenance\Providers\MaintenanceServiceProvider;
 use Litecommerce\Modules\Media\Providers\MediaServiceProvider;
+use Litecommerce\Modules\Notifications\Providers\NotificationsServiceProvider;
 use Litecommerce\Modules\Orders\Providers\OrdersServiceProvider;
 use Litecommerce\Modules\Payments\Providers\PaymentsServiceProvider;
 use Litecommerce\Modules\Pricing\Providers\PricingServiceProvider;
@@ -69,6 +70,11 @@ return [
         'maintenance' => [
             'enabled' => true,
             'provider' => MaintenanceServiceProvider::class,
+        ],
+
+        'notifications' => [
+            'enabled' => true,
+            'provider' => NotificationsServiceProvider::class,
         ],
 
         'updates' => [

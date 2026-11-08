@@ -125,7 +125,7 @@ export default function Button({
 
     if (href && !disabled) {
         return (
-            <Link href={href} className={className} style={style} {...interactionProps} {...rest}>
+            <Link href={href} onClick={onClick} className={className} style={style} {...interactionProps} {...rest}>
                 {content}
             </Link>
         );

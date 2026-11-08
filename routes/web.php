@@ -31,6 +31,7 @@ use Litecommerce\Modules\Installer\Presentation\Controllers\InstallerLocaleContr
 use Litecommerce\Modules\Installer\Presentation\Middleware\NegotiateInstallerLocale;
 use Litecommerce\Modules\Maintenance\Presentation\Controllers\MaintenanceController;
 use Litecommerce\Modules\Media\Presentation\Controllers\MediaPickerController;
+use Litecommerce\Modules\Notifications\Presentation\Controllers\PanelMessageController;
 use Litecommerce\Modules\Orders\Presentation\Controllers\OrderController;
 use Litecommerce\Modules\Orders\Presentation\Controllers\OrderDigitalGrantController;
 use Litecommerce\Modules\Orders\Presentation\Controllers\OrderFulfillmentController;
@@ -67,6 +68,7 @@ Route::middleware(['auth', 'no-store', 'staff.permission:'.CorePermission::Acces
     // RedirectIfAuthenticated::defaultRedirectUri() looks for it, and
     // AuthenticatedSessionController redirects here after login.
     Route::get('/panel', [PanelHomeController::class, 'show'])->name('dashboard');
+    Route::post('/panel/messages/read', [PanelMessageController::class, 'read'])->name('panel.messages.read');
     Route::get('/panel/wizard', [SetupWizardController::class, 'show'])->name('panel.wizard.show');
     Route::post('/panel/wizard', [SetupWizardController::class, 'store'])->name('panel.wizard.store');
     Route::post('/panel/wizard/skip', [SetupWizardController::class, 'skip'])->name('panel.wizard.skip');

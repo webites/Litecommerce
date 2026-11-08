@@ -10,8 +10,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Litecommerce\Modules\Audit\Contracts\AuditEntryData;
 use Litecommerce\Modules\Audit\Contracts\AuditLogger;
+use Litecommerce\Modules\Notifications\Contracts\PanelInbox;
 use Litecommerce\Modules\Store\Contracts\SettingsTabContent;
 use Litecommerce\Modules\Store\Contracts\SettingsTabContext;
+use Litecommerce\Modules\Updates\Application\UpdateMessages;
 use Litecommerce\Modules\Updates\Contracts\UpdateAlreadyRunningException;
 use Litecommerce\Modules\Updates\Contracts\UpdateChecker;
 use Litecommerce\Modules\Updates\Contracts\UpdateInstaller;
@@ -20,11 +22,21 @@ use Litecommerce\Modules\Updates\Contracts\UpdateStatus;
 
 final class UpdatesController extends Controller
 {
-    public function __construct(private readonly UpdateChecker $updates, private readonly UpdateInstaller $installer) {}
+    public function __construct(
+        private readonly UpdateChecker $updates,
+        private readonly UpdateInstaller $installer,
+        private readonly PanelInbox $inbox,
+    ) {}
 
     public function settingsTab(SettingsTabContext $context): SettingsTabContent
     {
-        return SettingsTabContent::component('updates', $this->present($this->updates->status(), $this->installer->current()));
+        $status = $this->updates->status();
+
+        if ($status->availableRelease !== null && auth()->id() !== null) {
+            $this->inbox->markRead((int) auth()->id(), UpdateMessages::availableKey($status->availableRelease->version->toString()));
+        }
+
+        return SettingsTabContent::component('updates', $this->present($status, $this->installer->current()));
     }
 
     public function check(): RedirectResponse

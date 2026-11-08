@@ -9,6 +9,7 @@ use Litecommerce\Modules\Identity\Contracts\CorePermission;
 use Litecommerce\Modules\Identity\Contracts\StaffPermissionChecker;
 use Litecommerce\Modules\Identity\Infrastructure\Models\StaffAccount;
 use Litecommerce\Modules\Maintenance\Contracts\MaintenanceMode;
+use Litecommerce\Modules\Notifications\Contracts\PanelInbox;
 use Litecommerce\Modules\Store\Contracts\SettingsTabRegistry;
 use Litecommerce\Modules\Store\Contracts\StoreSettingsReader;
 
@@ -43,7 +44,9 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'locale' => app()->getLocale(),
             'debug' => (bool) config('app.debug'),
+            'appVersion' => (string) config('version.current'),
             'translations' => fn (): array => app(PanelTranslations::class)->forCurrentLocale(),
+            'panelBanner' => fn (): ?array => $staffId > 0 ? $this->banner($staffId) : null,
             'maintenance' => fn (): ?array => ($state = app(MaintenanceMode::class)->state()) === null ? null : ['reason' => $state->reason->value, 'message' => $state->message],
             'settingsTabs' => fn (): array => app(SettingsTabRegistry::class)->visible(),
             'flash' => [
@@ -103,5 +106,13 @@ class HandleInertiaRequests extends Middleware
                 ],
             ],
         ];
+    }
+
+    /** @return array{message: array<string, mixed>, more: int}|null */
+    private function banner(int $staffId): ?array
+    {
+        $unread = app(PanelInbox::class)->unread($staffId);
+
+        return $unread === [] ? null : ['message' => $unread[0]->toArray(), 'more' => count($unread) - 1];
     }
 }

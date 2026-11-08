@@ -9,7 +9,9 @@ use Litecommerce\Modules\Identity\Contracts\CorePermission;
 use Litecommerce\Modules\Identity\Contracts\StaffPermissionChecker;
 use Litecommerce\Modules\Installer\Contracts\EnvironmentRequirements;
 use Litecommerce\Modules\Maintenance\Contracts\MaintenanceMode;
+use Litecommerce\Modules\Notifications\Contracts\PanelMessageRegistry;
 use Litecommerce\Modules\Scheduler\Contracts\ScheduledTaskRegistry;
+use Litecommerce\Modules\Store\Contracts\SettingsTabContext;
 use Litecommerce\Modules\Store\Contracts\SettingsTabRegistry;
 use Litecommerce\Modules\Updates\Application\BuildReleasePackage;
 use Litecommerce\Modules\Updates\Application\CheckForUpdates;
@@ -30,6 +32,7 @@ use Litecommerce\Modules\Updates\Application\Steps\RunMigrationsStep;
 use Litecommerce\Modules\Updates\Application\Steps\SwapFilesStep;
 use Litecommerce\Modules\Updates\Application\Steps\VerifyIntegrityStep;
 use Litecommerce\Modules\Updates\Application\Steps\VerifyPackageStep;
+use Litecommerce\Modules\Updates\Application\UpdateMessages;
 use Litecommerce\Modules\Updates\Application\UpdateOperationStore;
 use Litecommerce\Modules\Updates\Application\UpdatePaths;
 use Litecommerce\Modules\Updates\Application\UpdateRunLock;
@@ -98,9 +101,11 @@ final class UpdatesServiceProvider extends ServiceProvider
             'updates',
             'updates::panel.tab',
             800,
-            [$this->app->make(UpdatesController::class), 'settingsTab'],
+            fn (SettingsTabContext $context) => $this->app->make(UpdatesController::class)->settingsTab($context),
             fn (): bool => auth()->id() !== null && $this->app->make(StaffPermissionChecker::class)->allows((int) auth()->id(), CorePermission::ManageUpdates->value),
         );
+
+        $this->app->make(PanelMessageRegistry::class)->register(UpdateMessages::SOURCE, fn (): array => $this->app->make(UpdateMessages::class)->messages());
 
         $this->app->make(ScheduledTaskRegistry::class)->register('core.updates.check_releases', 86400, function (): void {
             $updates = $this->app->make(UpdateChecker::class);

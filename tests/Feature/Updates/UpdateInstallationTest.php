@@ -11,6 +11,7 @@ use Litecommerce\Modules\Installer\Contracts\EnvironmentRequirements;
 use Litecommerce\Modules\Installer\Infrastructure\InstallationLock;
 use Litecommerce\Modules\Maintenance\Contracts\MaintenanceMode;
 use Litecommerce\Modules\Maintenance\Contracts\MaintenanceReason;
+use Litecommerce\Modules\Notifications\Contracts\PanelInbox;
 use Litecommerce\Modules\Updates\Application\BuildReleasePackage;
 use Litecommerce\Modules\Updates\Application\EnvironmentProbe;
 use Litecommerce\Modules\Updates\Application\UpdateOperationState;
@@ -236,6 +237,54 @@ final class UpdateInstallationTest extends TestCase
 
         $this->actingAs(StaffAccount::factory()->create())->post(route('panel.settings.updates.install'))->assertSessionHas('error');
         $this->assertNull(app(UpdateOperationStore::class)->load());
+    }
+
+    public function test_an_available_release_is_announced_until_read_and_is_marked_read_by_opening_the_updates_tab(): void
+    {
+        $release = $this->publish('0.2.0', ['app/a.php' => 'new a']);
+        app(UpdateStateStore::class)->save(new UpdateState(release: $release->toArray()));
+        $admin = StaffAccount::factory()->create();
+        $manager = StaffAccount::factory()->withRole(SystemStaffRole::StoreManager)->create();
+        $inbox = app(PanelInbox::class);
+
+        $this->assertSame(['core.updates.available:0.2.0'], array_map(fn ($m) => $m->key, $inbox->unread($admin->getKey())));
+        $this->assertSame([], $inbox->active($manager->getKey()));
+
+        $this->actingAs($admin)->get(route('panel.settings.tabs.show', 'updates'))->assertOk();
+
+        $this->assertSame([], $inbox->unread($admin->getKey()));
+        $this->assertSame(['core.updates.available:0.2.0'], array_map(fn ($m) => $m->key, $inbox->active($admin->getKey())));
+    }
+
+    public function test_no_message_is_shown_once_the_release_is_installed(): void
+    {
+        $release = $this->publish('0.2.0', ['app/a.php' => 'new a']);
+        app(UpdateStateStore::class)->save(new UpdateState(release: $release->toArray()));
+        config(['version.current' => '0.2.0']);
+
+        $this->assertSame([], app(PanelInbox::class)->active(StaffAccount::factory()->create()->getKey()));
+    }
+
+    public function test_a_failed_update_that_left_the_store_in_maintenance_raises_a_danger_message(): void
+    {
+        $release = $this->publish('0.2.0', ['app/a.php' => 'new a']);
+        app(UpdateStateStore::class)->save(new UpdateState(release: $release->toArray()));
+        $installer = app(UpdateInstaller::class);
+        $installer->start($release, null);
+        $installer->advance(60);
+        file_put_contents($this->root.'/app/a.php', 'tampered');
+        $installer->advance(60);
+        $admin = StaffAccount::factory()->create();
+
+        $messages = app(PanelInbox::class)->active($admin->getKey());
+
+        $this->assertCount(1, $messages);
+        $this->assertStringStartsWith('core.updates.failed:', $messages[0]->key);
+        $this->assertSame('danger', $messages[0]->severity->value);
+
+        app(MaintenanceMode::class)->disable();
+        $this->assertCount(1, app(PanelInbox::class)->active($admin->getKey()));
+        $this->assertSame('core.updates.available:0.2.0', app(PanelInbox::class)->active($admin->getKey())[0]->key);
     }
 
     public function test_manually_enabled_maintenance_blocks_the_update(): void
