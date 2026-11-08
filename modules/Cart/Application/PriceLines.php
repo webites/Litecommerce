@@ -10,7 +10,7 @@ use Litecommerce\Modules\Cart\Domain\Quantity;
 use Litecommerce\Modules\Cart\Infrastructure\Models\Cart;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CartCoupon;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CartItem;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
 use Litecommerce\Modules\Coupons\Contracts\CouponCodeAllocationOutcome;
 use Litecommerce\Modules\Coupons\Contracts\CouponLineContext;
@@ -41,6 +41,7 @@ final class PriceLines
         private readonly StockLevelCatalog $stock,
         private readonly CurrencyRepository $currencies,
         private readonly CouponPricer $coupons,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     /** @param iterable<CartItem> $items */
@@ -97,7 +98,7 @@ final class PriceLines
 
             $stockOk = true;
 
-            if ($variant->productType === ProductType::Physical->value) {
+            if ($this->productTypes->get($variant->productType)->tracksStock) {
                 $stockItem = $stockData[$variantId] ?? null;
                 $available = $stockItem === null ? '0' : $stockItem->availableQuantity;
                 $allowBackorder = $stockItem !== null && $stockItem->allowBackorder;

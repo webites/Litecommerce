@@ -17,16 +17,16 @@ use Litecommerce\Modules\Cart\Application\PricedCart;
 use Litecommerce\Modules\Cart\Application\UpdateCheckoutDraft;
 use Litecommerce\Modules\Cart\Domain\Decimal;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CheckoutDraft;
+use Litecommerce\Modules\Cart\Presentation\Concerns\RespondsWithCartRejection;
 use Litecommerce\Modules\Cart\Presentation\Requests\ConfirmCheckoutDraftRequest;
 use Litecommerce\Modules\Cart\Presentation\Requests\UpdateCheckoutDraftRequest;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Delivery\Contracts\DeliveryMethodCatalog;
 use Litecommerce\Modules\Delivery\Contracts\DeliveryOptionQuote;
 use Litecommerce\Modules\Payments\Contracts\PaymentAttemptStarter;
 use Litecommerce\Modules\Payments\Contracts\PaymentAvailabilityContext;
 use Litecommerce\Modules\Payments\Contracts\PaymentMethodDescriptor;
 use Litecommerce\Modules\Payments\Contracts\PaymentMethodRegistry;
-use Litecommerce\Modules\Store\Contracts\LanguageRepository;
 
 /**
  * The "Checkout" side of the module — see CartController for the cart
@@ -43,6 +43,8 @@ use Litecommerce\Modules\Store\Contracts\LanguageRepository;
  */
 final class CheckoutController extends Controller
 {
+    use RespondsWithCartRejection;
+
     public function store(Request $request, CartResolver $resolver, CreateCheckoutDraft $action): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
@@ -56,12 +58,12 @@ final class CheckoutController extends Controller
         return response()->json($this->presentDraft($draft), 201);
     }
 
-    public function show(Request $request, string $draft, CartResolver $resolver, PriceCheckoutDraft $pricer, LanguageRepository $languages): JsonResponse
+    public function show(Request $request, string $draft, CartResolver $resolver, PriceCheckoutDraft $pricer): JsonResponse
     {
         $ownedCartIds = $resolver->resolveOwningCartIds($request);
         $draftModel = CheckoutDraft::query()->whereIn('cart_id', $ownedCartIds)->findOrFail($draft);
 
-        $priced = $pricer->price($draftModel, $this->locale($languages));
+        $priced = $pricer->price($draftModel, app()->getLocale());
 
         return response()->json([
             ...$this->presentDraft($draftModel),
@@ -82,13 +84,13 @@ final class CheckoutController extends Controller
         return response()->json($this->presentDraft($draftModel));
     }
 
-    public function confirm(ConfirmCheckoutDraftRequest $request, string $draft, CartResolver $resolver, ConfirmCheckoutDraft $action, LanguageRepository $languages, PaymentAttemptStarter $payments): JsonResponse
+    public function confirm(ConfirmCheckoutDraftRequest $request, string $draft, CartResolver $resolver, ConfirmCheckoutDraft $action, PaymentAttemptStarter $payments): JsonResponse
     {
         $ownedCartIds = $resolver->resolveOwningCartIds($request);
 
         try {
             $result = $action->execute(
-                $draft, $ownedCartIds, (string) $request->string('price_hash'), $this->locale($languages),
+                $draft, $ownedCartIds, (string) $request->string('price_hash'), app()->getLocale(),
                 (string) $request->input('payment_method_id', config('orders.default_payment_method')),
             );
         } catch (CartValidationException $exception) {
@@ -98,7 +100,7 @@ final class CheckoutController extends Controller
         if ($result->outcome === 'hash_mismatch') {
             return response()->json([
                 'code' => 'price_changed',
-                'message' => 'Wycena zmieniła się od ostatniego przeglądu. Potwierdź nową kwotę.',
+                'message' => trans('cart::errors.price_changed'),
                 'price' => $this->presentPrice($result->priced, $result->currentHash),
             ], 409);
         }
@@ -126,15 +128,15 @@ final class CheckoutController extends Controller
      * exact same check ConfirmCheckoutDraft performs right before placing
      * the order, instead of duplicating that eligibility logic here.
      */
-    public function paymentMethods(Request $request, string $draft, CartResolver $resolver, PriceCheckoutDraft $pricer, PaymentMethodRegistry $registry, LanguageRepository $languages): JsonResponse
+    public function paymentMethods(Request $request, string $draft, CartResolver $resolver, PriceCheckoutDraft $pricer, PaymentMethodRegistry $registry, ProductTypeRegistry $productTypes): JsonResponse
     {
         $ownedCartIds = $resolver->resolveOwningCartIds($request);
         $draftModel = CheckoutDraft::query()->whereIn('cart_id', $ownedCartIds)->findOrFail($draft);
 
-        $priced = $pricer->price($draftModel, $this->locale($languages));
+        $priced = $pricer->price($draftModel, app()->getLocale());
 
-        $containsPhysical = collect($priced->lines)->contains(fn ($line): bool => $line->productType === ProductType::Physical->value);
-        $containsDigital = collect($priced->lines)->contains(fn ($line): bool => $line->productType === ProductType::Digital->value);
+        $containsPhysical = collect($priced->lines)->contains(fn ($line): bool => $productTypes->get($line->productType)->requiresDelivery);
+        $containsDigital = collect($priced->lines)->contains(fn ($line): bool => $productTypes->get($line->productType)->grantsDigitalAccess);
 
         $context = new PaymentAvailabilityContext(
             $draftModel->id, $priced->grandTotalGrossAmount(), $priced->currencyCode,
@@ -163,11 +165,11 @@ final class CheckoutController extends Controller
      * simply "not excluded". Fetched asynchronously by the storefront
      * widget rather than embedded in the checkout page itself.
      */
-    public function countries(DeliveryMethodCatalog $delivery, LanguageRepository $languages): JsonResponse
+    public function countries(DeliveryMethodCatalog $delivery): JsonResponse
     {
         $sellable = array_flip($delivery->sellableCountryCodes());
         $countries = array_values(array_filter(
-            (new CountryDirectory)->all($this->locale($languages)),
+            (new CountryDirectory)->all(app()->getLocale()),
             static fn (array $country): bool => isset($sellable[$country['code']]),
         ));
 
@@ -234,6 +236,7 @@ final class CheckoutController extends Controller
             'total_vat_amount' => $priced->totalVatAmount,
             'total_gross_amount' => $priced->totalGrossAmount,
             'all_available' => $priced->allAvailable,
+            'adjustments' => $priced->adjustments,
             'coupons' => array_map(static fn ($o): array => [
                 'code' => $o->code, 'status' => $o->status->value, 'allocated_amount' => $o->allocatedAmount,
             ], $priced->couponOutcomes),
@@ -299,17 +302,5 @@ final class CheckoutController extends Controller
         }
 
         return rtrim(rtrim($value, '0'), '.');
-    }
-
-    private function rejected(CartValidationException $exception): JsonResponse
-    {
-        return response()->json(['code' => $exception->errorCode, 'message' => $exception->getMessage()], 422);
-    }
-
-    private function locale(LanguageRepository $languages): string
-    {
-        $language = $languages->default();
-
-        return $language === null ? (string) config('app.locale', 'pl') : $language->code;
     }
 }

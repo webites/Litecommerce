@@ -46,7 +46,7 @@ final class GenerateVariantsRequest extends FormRequest
                     ->count();
 
                 if ($matching !== count(array_unique(array_map('intval', $option['attribute_value_ids'])))) {
-                    $validator->errors()->add("options.{$index}.attribute_value_ids", 'Wszystkie wartości muszą należeć do wskazanego atrybutu.');
+                    $validator->errors()->add("options.{$index}.attribute_value_ids", trans('catalog::validation.option_values_attribute'));
                 }
             }
         }];

@@ -59,7 +59,7 @@ final class SetProductAttributesRequest extends FormRequest
                 if ($valueIds !== []) {
                     $matching = DB::table('attribute_values')->where('attribute_definition_id', $definitionId)->whereIn('id', $valueIds)->count();
                     if ($matching !== count(array_unique($valueIds))) {
-                        $validator->errors()->add("attributes.{$index}.value_ids", 'Wartość nie należy do wskazanego atrybutu.');
+                        $validator->errors()->add("attributes.{$index}.value_ids", trans('catalog::validation.attribute_value_foreign'));
                     }
                 }
 
@@ -81,7 +81,7 @@ final class SetProductAttributesRequest extends FormRequest
         };
 
         if (! $valid) {
-            $validator->errors()->add("attributes.{$index}", 'Wartość nie pasuje do typu atrybutu.');
+            $validator->errors()->add("attributes.{$index}", trans('catalog::validation.attribute_value_type'));
         }
     }
 }

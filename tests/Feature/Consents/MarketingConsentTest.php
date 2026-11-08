@@ -104,6 +104,16 @@ final class MarketingConsentTest extends TestCase
         $this->assertSame('unsubscribe_link', DB::table('marketing_consent_events')->where('action', 'withdrawn')->value('source'));
     }
 
+    public function test_unsubscribe_answer_follows_the_page_language(): void
+    {
+        $this->consents->grant('a@example.com', ConsentSource::Checkout, 'pl');
+        $token = basename(parse_url((string) $this->consents->unsubscribeUrl('a@example.com'), PHP_URL_PATH));
+
+        $this->postJson('/marketing/unsubscribe/'.$token, [], ['X-Storefront-Locale' => 'en'])
+            ->assertOk()
+            ->assertJsonPath('message', 'You have been unsubscribed from marketing messages.');
+    }
+
     public function test_senders_page_through_active_consents_with_a_cursor(): void
     {
         foreach (['a', 'b', 'c', 'd'] as $name) {

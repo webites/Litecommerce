@@ -7,6 +7,7 @@ import Pricing from '@/Pages/Panel/Pricing/Index';
 import Languages from '@/Pages/Panel/Store/Languages/Index';
 import Redirects from '@/Pages/Panel/Store/Redirects/Index';
 import Seo from '@/Pages/Panel/Store/Seo/Index';
+import Updates from '@/Pages/Panel/Updates/Index';
 import { useTranslate } from '@/lib/i18n';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,7 +16,7 @@ import Email from './Email';
 import General from './General';
 import Scheduler from './Scheduler';
 
-const components = { general: General, advanced: Advanced, pricing: Pricing, delivery: Delivery, payments: Payments, languages: Languages, seo: Seo, redirects: Redirects, email: Email, scheduler: Scheduler };
+const components = { general: General, advanced: Advanced, pricing: Pricing, delivery: Delivery, payments: Payments, languages: Languages, seo: Seo, redirects: Redirects, email: Email, scheduler: Scheduler, updates: Updates };
 
 export default function Index() {
     const { settingsTabs = [] } = usePage().props;

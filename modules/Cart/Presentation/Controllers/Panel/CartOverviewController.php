@@ -45,7 +45,7 @@ final class CartOverviewController extends Controller
                 'id' => $cart->id,
                 'owner' => $cart->customer_account_id !== null
                     ? ($emails[$cart->customer_account_id] ?? "Konto #{$cart->customer_account_id}")
-                    : 'Gość',
+                    : trans('cart::labels.guest'),
                 'currency_code' => $cart->currency_code,
                 'items_count' => $cart->items_count,
                 'status' => $cart->status === 'checked_out' ? 'checked_out' : ($isAbandoned ? 'abandoned' : 'active'),
@@ -103,7 +103,7 @@ final class CartOverviewController extends Controller
                 'id' => $cart->id,
                 'owner' => $cart->customer_account_id !== null
                     ? ($customers->emailFor($cart->customer_account_id) ?? "Konto #{$cart->customer_account_id}")
-                    : 'Gość',
+                    : trans('cart::labels.guest'),
                 'currency_code' => $cart->currency_code,
                 'status' => $this->displayStatus($cart, $abandonAfter),
                 'version' => $cart->version,
@@ -133,7 +133,7 @@ final class CartOverviewController extends Controller
 
     private function cartNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.cart.index')->with('error', 'Koszyk nie został znaleziony.');
+        return redirect()->route('panel.cart.index')->with('error', trans('cart::flash.cart_not_found'));
     }
 
     private function displayStatus(Cart $cart, Carbon $abandonAfter): string

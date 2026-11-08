@@ -99,9 +99,8 @@ final class CustomerAccountDeletionTest extends TestCase
             ->assertUnprocessable()->assertJsonPath('errors.password.0', 'Hasło jest nieprawidłowe.');
         $this->postJson(route('customer.account.deletion.confirm'), ['token' => 'nope', 'locale' => 'pl'])
             ->assertUnprocessable()->assertJsonPath('errors.token.0', trans('identity::account_deletion.invalid_link', [], 'pl'));
-        app()->setLocale('en');
         $this->postJson(route('customer.account.deletion.request'), ['password' => 'wrong', 'locale' => 'xx'])
-            ->assertUnprocessable()->assertJsonPath('errors.password.0', trans('identity::account_deletion.invalid_password', [], 'en'));
+            ->assertUnprocessable()->assertJsonPath('errors.password.0', trans('identity::account_deletion.invalid_password', [], 'pl'));
     }
 
     public function test_correct_password_sends_one_link_and_stores_only_its_hash(): void

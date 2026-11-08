@@ -1,5 +1,6 @@
 import Avatar from '@/Components/ui/Avatar';
 import Alert from '@/Components/ui/Alert';
+import RequestErrorNotice from '@/Components/panel/RequestErrorNotice';
 import DropdownMenu from '@/Components/ui/DropdownMenu';
 import LocaleSwitcher from '@/Components/ui/LocaleSwitcher';
 import Sidebar from '@/Components/ui/Sidebar';
@@ -163,6 +164,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         <Alert tone="warning">{maintenance.reason === 'update' ? t('maintenance.banner_update') : t('maintenance.banner_manual')}</Alert>
                     </div>
                 )}
+                <RequestErrorNotice />
                 <main style={{ flex: 1, overflowY: 'auto' }}>{children}</main>
             </div>
         </div>

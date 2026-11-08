@@ -45,12 +45,14 @@ final class Decimal
         return self::compare($amount, '0') > 0;
     }
 
-    /** Commercial (half up) rounding to the currency's decimal places. */
+    /** Commercial rounding to the currency's decimal places: half away from zero, so a negative amount mirrors a positive one. */
     public static function roundHalfUp(string $amount, int $decimals): string
     {
+        $negative = str_starts_with($amount, '-');
         $epsilon = '0.'.str_repeat('0', $decimals).'5';
-        $bumped = bcadd($amount, $epsilon, $decimals + 1);
+        $bumped = bcadd(ltrim($amount, '-'), $epsilon, $decimals + 1);
+        $rounded = bcadd($bumped, '0', $decimals);
 
-        return bcadd($bumped, '0', $decimals);
+        return $negative && bccomp($rounded, '0', $decimals) !== 0 ? '-'.$rounded : $rounded;
     }
 }

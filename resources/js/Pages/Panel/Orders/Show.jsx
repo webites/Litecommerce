@@ -134,6 +134,16 @@ export default function Show({ order }) {
                         <div><div style={term}>{t('orders.show.delivery_gross', 'Delivery (gross)')}</div><strong>{order.delivery ? money(order.delivery.gross_amount, order.currency_code, order.currency_decimal_places) : '—'}</strong></div>
                         <div><div style={term}>{t('orders.show.grand_total', 'Gross total')}</div><strong>{money(order.total_gross_amount, order.currency_code, order.currency_decimal_places)}</strong></div>
                     </div>
+                    {order.adjustments.length > 0 && (
+                        <dl style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {order.adjustments.map((adjustment) => (
+                                <div key={adjustment.code} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <dt style={term}>{adjustment.label}</dt>
+                                    <dd style={value}>{money(adjustment.gross_amount, order.currency_code, order.currency_decimal_places)}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    )}
                 </Card>
 
                 {order.coupon_usages.length > 0 && (

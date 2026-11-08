@@ -42,6 +42,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'locale' => app()->getLocale(),
+            'debug' => (bool) config('app.debug'),
             'translations' => fn (): array => app(PanelTranslations::class)->forCurrentLocale(),
             'maintenance' => fn (): ?array => ($state = app(MaintenanceMode::class)->state()) === null ? null : ['reason' => $state->reason->value, 'message' => $state->message],
             'settingsTabs' => fn (): array => app(SettingsTabRegistry::class)->visible(),

@@ -44,4 +44,22 @@ final readonly class OrderDetailData
         public ?\DateTimeImmutable $createdAt,
         public ?PickupFulfillmentData $pickup = null,
     ) {}
+
+    /**
+     * Order-level pricing adjustments, summed from the per-line shares.
+     *
+     * @return list<array{code: string, label: string, gross_amount: string}>
+     */
+    public function adjustmentTotals(): array
+    {
+        $totals = [];
+        foreach ($this->lines as $line) {
+            foreach ($line->adjustmentAllocations as $share) {
+                $totals[$share['code']] ??= ['code' => $share['code'], 'label' => $share['label'], 'gross_amount' => '0'];
+                $totals[$share['code']]['gross_amount'] = bcadd($totals[$share['code']]['gross_amount'], $share['gross_amount'], 6);
+            }
+        }
+
+        return array_values($totals);
+    }
 }

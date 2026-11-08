@@ -6,7 +6,7 @@ namespace Litecommerce\Modules\Orders\Application;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Coupons\Contracts\CouponReservationManager;
 use Litecommerce\Modules\Coupons\Contracts\InvalidCouponReservationStateException;
 use Litecommerce\Modules\Digital\Contracts\DigitalAccessGrantor;
@@ -27,6 +27,7 @@ final class ManageOrderPayment implements OrderPaymentManager
         private readonly CouponReservationManager $coupons,
         private readonly DigitalAccessGrantor $digitalAccess,
         private readonly OrderEmailComposer $emails,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     public function confirm(string $orderId, \DateTimeImmutable $paidAt, string $attemptId): string
@@ -87,7 +88,7 @@ final class ManageOrderPayment implements OrderPaymentManager
             $digitalGrants = [];
             if ($order->mode !== 'test') {
                 foreach ($order->lines as $line) {
-                    if ($line->product_type === ProductType::Digital->value) {
+                    if ($this->productTypes->get($line->product_type)->grantsDigitalAccess) {
                         array_push($digitalGrants, ...$this->digitalAccess->grantForOrderLine(
                             (int) $line->variant_id, 'order_line', (string) $line->getKey(), $order->id,
                             $order->customer_account_id, $order->email, $paidAt,

@@ -10,6 +10,7 @@ use Litecommerce\Modules\Identity\Presentation\Controllers\CustomerPasswordReset
 use Litecommerce\Modules\Identity\Presentation\Controllers\CustomerRegistrationController;
 use Litecommerce\Modules\Identity\Presentation\Controllers\CustomerSessionController;
 use Litecommerce\Modules\Payments\Presentation\Controllers\PaymentWebhookController;
+use Litecommerce\Modules\Storefront\Presentation\Middleware\ResolveStorefrontApiLocale;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,7 +27,7 @@ use Litecommerce\Modules\Payments\Presentation\Controllers\PaymentWebhookControl
 |
 */
 
-Route::prefix('customer')->name('customer.')->middleware('no-store')->group(function (): void {
+Route::prefix('customer')->name('customer.')->middleware(['no-store', ResolveStorefrontApiLocale::class])->group(function (): void {
     Route::post('/register', [CustomerRegistrationController::class, 'store'])->name('register');
     Route::post('/login', [CustomerSessionController::class, 'store'])->name('login');
     Route::post('/logout', [CustomerSessionController::class, 'destroy'])->name('logout');
@@ -36,14 +37,14 @@ Route::prefix('customer')->name('customer.')->middleware('no-store')->group(func
     Route::post('/account/deletion/confirm', [CustomerAccountDeletionController::class, 'confirm'])->middleware('throttle:10,1')->name('account.deletion.confirm');
 });
 
-Route::put('/customer/account/marketing-consent', [MarketingConsentController::class, 'update'])->middleware(['auth:customer', 'no-store'])->name('customer.account.marketing-consent.update');
+Route::put('/customer/account/marketing-consent', [MarketingConsentController::class, 'update'])->middleware(['auth:customer', 'no-store', ResolveStorefrontApiLocale::class])->name('customer.account.marketing-consent.update');
 
 Route::post('/marketing/unsubscribe/{token}', [MarketingConsentController::class, 'unsubscribe'])
-    ->middleware(['no-store', 'throttle:30,1'])
+    ->middleware(['no-store', 'throttle:30,1', ResolveStorefrontApiLocale::class])
     ->where('token', '[A-Za-z0-9]{40}')
     ->name('marketing.unsubscribe.store');
 
-Route::prefix('cart')->name('cart.')->middleware('no-store')->group(function (): void {
+Route::prefix('cart')->name('cart.')->middleware(['no-store', ResolveStorefrontApiLocale::class])->group(function (): void {
     Route::get('/', [CartController::class, 'show'])->name('show');
     Route::post('/items', [CartController::class, 'addItem'])->name('items.store');
     Route::put('/items/{variantId}', [CartController::class, 'updateItem'])->name('items.update');
@@ -53,7 +54,7 @@ Route::prefix('cart')->name('cart.')->middleware('no-store')->group(function ():
     Route::delete('/coupons/{code}', [CartController::class, 'detachCoupon'])->name('coupons.destroy');
 });
 
-Route::prefix('checkout')->name('checkout.')->middleware('no-store')->group(function (): void {
+Route::prefix('checkout')->name('checkout.')->middleware(['no-store', ResolveStorefrontApiLocale::class])->group(function (): void {
     Route::post('/', [CheckoutController::class, 'store'])->name('store');
     // Registered before the '{draft}' wildcard below — otherwise it would
     // swallow this literal segment instead of the country-list endpoint.

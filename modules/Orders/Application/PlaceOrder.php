@@ -7,11 +7,12 @@ namespace Litecommerce\Modules\Orders\Application;
 use App\Support\Events\CommittedEvent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Coupons\Contracts\CouponReservationManager;
 use Litecommerce\Modules\Digital\Contracts\DigitalAccessGrantor;
 use Litecommerce\Modules\Orders\Contracts\Events\OrderPlaced;
 use Litecommerce\Modules\Orders\Contracts\OrderPaymentStatus;
+use Litecommerce\Modules\Orders\Contracts\OrderPlacementLineData;
 use Litecommerce\Modules\Orders\Contracts\OrderPlacer;
 use Litecommerce\Modules\Orders\Contracts\OrderStatus;
 use Litecommerce\Modules\Orders\Contracts\PlacedOrderData;
@@ -33,6 +34,7 @@ final class PlaceOrder implements OrderPlacer
         private readonly DigitalAccessGrantor $digitalAccess,
         private readonly OrderProjector $projector,
         private readonly OrderEmailComposer $emails,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     public function place(PlaceOrderData $data): PlacedOrderData
@@ -128,7 +130,7 @@ final class PlaceOrder implements OrderPlacer
                         'display_name' => $lineData->displayName, 'quantity' => $lineData->quantity,
                         'unit_amount' => $lineData->unitAmount, 'line_net_amount' => $lineData->lineNetAmount,
                         'line_vat_amount' => $lineData->lineVatAmount, 'line_gross_amount' => $lineData->lineGrossAmount,
-                        'allocations_snapshot' => $lineData->couponAllocations === [] ? null : ['coupons' => $lineData->couponAllocations],
+                        'allocations_snapshot' => $this->allocationsSnapshot($lineData),
                     ]),
                 ];
             }
@@ -142,7 +144,7 @@ final class PlaceOrder implements OrderPlacer
             // docs/knowledge-base/10-operations.md "Testy obciążeniowe".
             $physicalLines = array_values(array_filter(
                 $lines,
-                static fn (array $entry): bool => $entry['data']->productType === ProductType::Physical->value,
+                fn (array $entry): bool => $this->productTypes->get($entry['data']->productType)->tracksStock,
             ));
             usort($physicalLines, static fn (array $a, array $b): int => $a['data']->variantId <=> $b['data']->variantId);
 
@@ -166,7 +168,7 @@ final class PlaceOrder implements OrderPlacer
             $digitalGrants = [];
             if (! $data->testMode && $alreadyPaid) {
                 foreach ($lines as $entry) {
-                    if ($entry['data']->productType === ProductType::Digital->value) {
+                    if ($this->productTypes->get($entry['data']->productType)->grantsDigitalAccess) {
                         array_push($digitalGrants, ...$this->digitalAccess->grantForOrderLine(
                             $entry['data']->variantId, 'order_line', (string) $entry['model']->getKey(), $id,
                             $data->customerAccountId, $data->email, \DateTimeImmutable::createFromInterface($now),
@@ -209,5 +211,16 @@ final class PlaceOrder implements OrderPlacer
             'aggregate_version' => $order->version, 'payload' => $payload,
             'occurred_at' => now(), 'available_at' => now(),
         ]);
+    }
+
+    /** @return array<string, list<array<string, string>>>|null */
+    private function allocationsSnapshot(OrderPlacementLineData $line): ?array
+    {
+        $snapshot = array_filter([
+            'coupons' => $line->couponAllocations,
+            'adjustments' => $line->adjustmentAllocations,
+        ]);
+
+        return $snapshot === [] ? null : $snapshot;
     }
 }

@@ -81,4 +81,9 @@ return [
         'load_error' => 'The media library could not be loaded.',
         'upload_error' => 'The image could not be uploaded.',
     ],
+    'request_error_network' => 'No connection to the server. Check your internet connection and try again.',
+    'request_error_session_expired' => 'Your session has expired. Refresh the page and try again.',
+    'request_error_too_many' => 'Too many attempts. Wait a moment and try again.',
+    'request_error_server' => 'The server could not complete the request. Please try again in a moment.',
+    'request_error_generic' => 'Something went wrong. Please try again.',
 ];

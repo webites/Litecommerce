@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Catalog\Application;
 
 use Illuminate\Support\Facades\DB;
+use Litecommerce\Modules\Catalog\Contracts\CoreProductType;
 use Litecommerce\Modules\Catalog\Contracts\ProductStatus;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
 use Litecommerce\Modules\Catalog\Contracts\ProductUnit;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\AttributeDefinition;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\AttributeDefinitionTranslation;
@@ -84,7 +84,7 @@ final readonly class CatalogDemoDataContributor implements DemoDataContributor
                 name: $copy['name'],
                 shortDescription: $copy['short'],
                 descriptionHtml: $this->richDescription($copy, $content['templates']['sections']),
-                type: ProductType::Physical->value,
+                type: CoreProductType::Physical->value,
                 status: ProductStatus::Published->value,
                 variantSeoMode: null,
                 featured: $featured,

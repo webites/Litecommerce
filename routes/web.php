@@ -45,6 +45,7 @@ use Litecommerce\Modules\Store\Presentation\Controllers\LanguageController;
 use Litecommerce\Modules\Store\Presentation\Controllers\RenderedSettingsTabController;
 use Litecommerce\Modules\Store\Presentation\Controllers\StoreSettingsController;
 use Litecommerce\Modules\Themes\Presentation\Controllers\Panel\ThemeController;
+use Litecommerce\Modules\Updates\Presentation\Controllers\UpdatesController;
 use Litecommerce\Modules\Warehouse\Presentation\Controllers\WarehouseController;
 
 Route::prefix('install')->name('install.')->middleware(['no-store', NegotiateInstallerLocale::class])->group(function () {
@@ -112,6 +113,8 @@ Route::middleware(['auth', 'no-store', 'staff.permission:'.CorePermission::Acces
             Route::post('/cache/clear', ClearApplicationCacheController::class)->name('cache.clear');
             Route::post('/maintenance', [MaintenanceController::class, 'enable'])->name('maintenance.enable');
             Route::delete('/maintenance', [MaintenanceController::class, 'disable'])->name('maintenance.disable');
+            Route::post('/updates/check', [UpdatesController::class, 'check'])->name('updates.check');
+            Route::put('/updates/automatic', [UpdatesController::class, 'setAutomatic'])->name('updates.automatic');
             Route::post('/scheduler/cron', [SchedulerSettingsController::class, 'configureCron'])->name('scheduler.cron');
             Route::post('/demo-data', [DemoDataController::class, 'store'])->name('demo-data.store');
             Route::delete('/demo-data', [DemoDataController::class, 'destroy'])->name('demo-data.destroy');

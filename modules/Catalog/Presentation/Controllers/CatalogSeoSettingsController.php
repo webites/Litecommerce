@@ -41,6 +41,6 @@ final class CatalogSeoSettingsController extends Controller
             changes: $data,
         ));
 
-        return back()->with('status', 'Domyślny tryb indeksowania wariantów został zapisany.');
+        return back()->with('status', trans('catalog::flash.seo_variant_indexing_saved'));
     }
 }

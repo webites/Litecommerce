@@ -114,6 +114,9 @@
                     <div class="summary-line"><span>{{ trans('cart::checkout.line_items_label') }}</span><span class="val" data-field="price.subtotal_gross_amount"></span></div>
                     <div class="summary-line"><span>{{ trans('cart::checkout.delivery_label') }}</span><span class="val" data-field="price.delivery.selected.gross_amount"></span></div>
                     <div class="summary-line"><span>{{ trans('cart::checkout.discount_label') }}</span><span class="val" data-field="price.discount_amount"></span></div>
+                    <template data-storefront-list="price.adjustments">
+                        <div class="summary-line"><span data-field="label"></span><span class="val" data-field="gross_amount"></span></div>
+                    </template>
                     <div class="summary-total"><span>{{ trans('cart::checkout.total_label') }}</span><span class="val" data-field="price.grand_total_gross_amount"></span></div>
 
                     <p data-storefront-message role="alert" class="banner banner-error" style="margin-top: 18px;"></p>

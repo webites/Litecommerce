@@ -10,8 +10,9 @@ import { Link } from '@inertiajs/react';
 
 export default function ProductForm({ form, languages, types, statuses, variantSeoModes, units, brands, categories, hasAxes, onSubmit, submitLabel }) {
     const t = useTranslate();
+    const isSingleUnit = (type) => Boolean(types.find((option) => option.value === type)?.sold_as_single_unit);
     const setType = (type) => {
-        form.setData((current) => type === 'digital' ? {
+        form.setData((current) => isSingleUnit(type) ? {
             ...current, type, unit_code: 'piece', minimum_quantity: '1', maximum_quantity: '1', quantity_step: '1',
         } : { ...current, type });
     };
@@ -137,7 +138,7 @@ export default function ProductForm({ form, languages, types, statuses, variantS
                     <Select
                         id="unit_code"
                         label={t('catalog.product_form.unit', 'Unit')}
-                        disabled={form.data.type === 'digital'}
+                        disabled={isSingleUnit(form.data.type)}
                         value={form.data.unit_code}
                         options={units}
                         error={form.errors.unit_code}
@@ -153,7 +154,7 @@ export default function ProductForm({ form, languages, types, statuses, variantS
                     <Input
                         id="minimum_quantity"
                         label={t('catalog.product_form.minimum_quantity', 'Minimum quantity')}
-                        disabled={form.data.type === 'digital'}
+                        disabled={isSingleUnit(form.data.type)}
                         value={form.data.minimum_quantity}
                         error={form.errors.minimum_quantity}
                         onChange={(e) => form.setData('minimum_quantity', e.target.value)}
@@ -161,7 +162,7 @@ export default function ProductForm({ form, languages, types, statuses, variantS
                     <Input
                         id="maximum_quantity"
                         label={t('catalog.product_form.maximum_quantity_optional', 'Maximum quantity (optional)')}
-                        disabled={form.data.type === 'digital'}
+                        disabled={isSingleUnit(form.data.type)}
                         value={form.data.maximum_quantity}
                         error={form.errors.maximum_quantity}
                         onChange={(e) => form.setData('maximum_quantity', e.target.value)}
@@ -169,7 +170,7 @@ export default function ProductForm({ form, languages, types, statuses, variantS
                     <Input
                         id="quantity_step"
                         label={t('catalog.product_form.quantity_step', 'Quantity step')}
-                        disabled={form.data.type === 'digital'}
+                        disabled={isSingleUnit(form.data.type)}
                         value={form.data.quantity_step}
                         error={form.errors.quantity_step}
                         onChange={(e) => form.setData('quantity_step', e.target.value)}

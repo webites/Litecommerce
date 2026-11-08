@@ -30,14 +30,14 @@
     </ul>
 
     @if ($result->satisfied())
-        <p class="notice">{{ __('installer::messages.environment.satisfied') }}</p>
+        <div class="alert success">{{ __('installer::messages.environment.satisfied') }}</div>
         <div class="actions">
             <a class="button" href="{{ route('install.database.show') }}">{{ __('installer::messages.continue') }}</a>
         </div>
     @else
-        <p class="errors" style="margin-top:1rem">{{ __('installer::messages.environment.fix') }}</p>
+        <div class="alert danger">{{ __('installer::messages.environment.fix') }}</div>
         <div class="actions">
-            <a class="button secondary" href="{{ route('install.environment') }}">{{ __('installer::messages.environment.refresh') }}</a>
+            <a class="button outline" href="{{ route('install.environment') }}">{{ __('installer::messages.environment.refresh') }}</a>
         </div>
     @endif
 @endsection

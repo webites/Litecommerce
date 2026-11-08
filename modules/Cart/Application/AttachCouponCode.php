@@ -26,7 +26,7 @@ final class AttachCouponCode
         $code = strtoupper(trim($code));
 
         if ($code === '') {
-            throw new CartValidationException('coupon_code_required', 'Podaj kod kuponu.');
+            throw new CartValidationException('coupon_code_required', 'A coupon code is required.');
         }
 
         if (CartCoupon::query()->where('cart_id', $cartId)->where('code', $code)->exists()) {
@@ -44,7 +44,7 @@ final class AttachCouponCode
         $status = $this->validator->attach($code, $pin, $customerAccountId, $cart->currency_code, $alreadyAttached);
 
         if ($status !== CouponAttachmentStatus::Applied) {
-            throw new CartValidationException('coupon_'.$status->value, self::message($status));
+            throw new CartValidationException('coupon_'.$status->value, 'The coupon code was rejected: '.$status->value.'.');
         }
 
         DB::transaction(function () use ($cartId, $code): void {
@@ -54,23 +54,5 @@ final class AttachCouponCode
                 CartCoupon::query()->create(['cart_id' => $cartId, 'code' => $code, 'attached_at' => now()]);
             }
         });
-    }
-
-    private static function message(CouponAttachmentStatus $status): string
-    {
-        return match ($status) {
-            CouponAttachmentStatus::InvalidCode => 'Nieznany kod kuponu.',
-            CouponAttachmentStatus::Blocked => 'Ten kod jest zablokowany.',
-            CouponAttachmentStatus::Expired => 'Ten kod wygasł.',
-            CouponAttachmentStatus::AccountRequired => 'Ten kod wymaga zalogowania na przypisane konto.',
-            CouponAttachmentStatus::AccountMismatch => 'Ten kod jest przypisany do innego konta.',
-            CouponAttachmentStatus::CurrencyUnavailable => 'Ten kod jest niedostępny w wybranej walucie.',
-            CouponAttachmentStatus::PinRequired => 'Ten kod wymaga podania PIN-u.',
-            CouponAttachmentStatus::PinIncorrect => 'Nieprawidłowy PIN.',
-            CouponAttachmentStatus::PinLocked => 'PIN został zablokowany po zbyt wielu próbach.',
-            CouponAttachmentStatus::NotCombinable => 'Tego kodu nie można łączyć z innym już dodanym kodem.',
-            CouponAttachmentStatus::ModuleDisabled => 'Kupony są obecnie wyłączone.',
-            CouponAttachmentStatus::Applied => 'Kod dodany.',
-        };
     }
 }

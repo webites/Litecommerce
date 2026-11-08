@@ -12,7 +12,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Litecommerce\Modules\Audit\Contracts\AuditEntryData;
 use Litecommerce\Modules\Audit\Contracts\AuditLogger;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
 use Litecommerce\Modules\Catalog\Contracts\VariantSummaryData;
 use Litecommerce\Modules\Store\Contracts\LanguageRepository;
@@ -21,13 +21,15 @@ use Litecommerce\Modules\Warehouse\Contracts\StockLevelCatalog;
 
 final class WarehouseController extends Controller
 {
+    public function __construct(private readonly ProductTypeRegistry $productTypes) {}
+
     public function index(Request $request, VariantCatalog $variants, StockLevelCatalog $stockLevels, LanguageRepository $languages): Response
     {
         $locale = $this->defaultLocale($languages);
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 25;
 
-        $listing = $variants->paginatePhysical($locale, $perPage, $page);
+        $listing = $variants->paginateStockTracked($locale, $perPage, $page);
         $stock = $stockLevels->findMany(array_map(static fn (VariantSummaryData $v): int => $v->id, $listing['items']));
 
         $rows = array_map(function (VariantSummaryData $variant) use ($stock): array {
@@ -75,7 +77,7 @@ final class WarehouseController extends Controller
 
     public function updateBackorder(Request $request, int $variantId, VariantCatalog $variants, StockAdjuster $adjuster, AuditLogger $audit): RedirectResponse
     {
-        $this->assertPhysicalVariantExists($variantId, $variants);
+        $this->assertStockTrackedVariantExists($variantId, $variants);
         /** @var array{allow_backorder:bool} $validated */
         $validated = $request->validate(['allow_backorder' => ['required', 'boolean']]);
 
@@ -87,7 +89,7 @@ final class WarehouseController extends Controller
 
     public function receive(Request $request, int $variantId, VariantCatalog $variants, StockAdjuster $adjuster, AuditLogger $audit): RedirectResponse
     {
-        $this->assertPhysicalVariantExists($variantId, $variants);
+        $this->assertStockTrackedVariantExists($variantId, $variants);
         /** @var array{quantity:string,reason:string|null} $validated */
         $validated = $request->validate([
             'quantity' => ['required', 'numeric', 'gt:0'],
@@ -102,7 +104,7 @@ final class WarehouseController extends Controller
 
     public function correct(Request $request, int $variantId, VariantCatalog $variants, StockAdjuster $adjuster, AuditLogger $audit): RedirectResponse
     {
-        $this->assertPhysicalVariantExists($variantId, $variants);
+        $this->assertStockTrackedVariantExists($variantId, $variants);
         /** @var array{on_hand_quantity:string,reason:string|null} $validated */
         $validated = $request->validate([
             'on_hand_quantity' => ['required', 'numeric', 'gte:0'],
@@ -118,14 +120,14 @@ final class WarehouseController extends Controller
     /**
      * These actions take a raw variant id from the URL, not a route-model
      * bound Catalog entity (Warehouse only knows Catalog through its
-     * Contracts) — reject an unknown or non-physical id as a clean 404
+     * Contracts) — reject an unknown or id of a variant that does not track stock as a clean 404
      * instead of letting AdjustStock's InvalidArgumentException surface
      * as a 500.
      */
-    private function assertPhysicalVariantExists(int $variantId, VariantCatalog $variants): void
+    private function assertStockTrackedVariantExists(int $variantId, VariantCatalog $variants): void
     {
         $variant = $variants->find($variantId);
-        abort_if($variant === null || $variant->productType !== ProductType::Physical->value, 404);
+        abort_if($variant === null || ! $this->productTypes->get($variant->productType)->tracksStock, 404);
     }
 
     /**

@@ -14,6 +14,9 @@ use Illuminate\Support\Carbon;
  * @property string $products_net_amount
  * @property string $products_vat_amount
  * @property string $products_gross_amount
+ * @property string $adjustments_net_amount
+ * @property string $adjustments_vat_amount
+ * @property string $adjustments_gross_amount
  * @property string $coupon_restored_amount
  * @property string|null $delivery_net_amount
  * @property string|null $delivery_vat_amount
@@ -33,6 +36,7 @@ final class RefundRecord extends Model
     {
         return [
             'products_net_amount' => 'decimal:6', 'products_vat_amount' => 'decimal:6', 'products_gross_amount' => 'decimal:6',
+            'adjustments_net_amount' => 'decimal:6', 'adjustments_vat_amount' => 'decimal:6', 'adjustments_gross_amount' => 'decimal:6',
             'coupon_restored_amount' => 'decimal:6', 'delivery_net_amount' => 'decimal:6', 'delivery_vat_amount' => 'decimal:6',
             'delivery_gross_amount' => 'decimal:6', 'money_refund_amount' => 'decimal:6',
             'decided_at' => 'datetime', 'paid_out_at' => 'datetime',

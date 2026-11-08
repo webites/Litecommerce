@@ -4,19 +4,31 @@ declare(strict_types=1);
 
 namespace Litecommerce\Modules\Installer\Application;
 
+use Litecommerce\Modules\Installer\Contracts\EnvironmentRequirements;
+
 /**
  * Checks the environment requirements set in P0-004
  * (docs/knowledge-base/10-operations.md — "Wymagania środowiskowe").
  */
-final class EnvironmentRequirementsChecker
+final class EnvironmentRequirementsChecker implements EnvironmentRequirements
 {
     private const REQUIRED_EXTENSIONS = [
         'ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'mbstring',
         'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'tokenizer', 'xml', 'xmlwriter',
-        'bcmath', 'intl', 'gd', 'zip',
+        'bcmath', 'intl', 'gd', 'zip', 'sodium',
     ];
 
     private const MINIMUM_PHP_VERSION = '8.3.0';
+
+    public function minimumPhpVersion(): string
+    {
+        return self::MINIMUM_PHP_VERSION;
+    }
+
+    public function requiredExtensions(): array
+    {
+        return self::REQUIRED_EXTENSIONS;
+    }
 
     public function check(): EnvironmentRequirementsResult
     {

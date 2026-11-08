@@ -136,7 +136,7 @@ final class StoreSettingsTest extends TestCase
             ->assertHeader('Cache-Control', 'max-age=0, must-revalidate, no-cache, no-store, private')
             ->assertInertia(fn ($page) => $page
                 ->component('Panel/Store/Settings/Index')
-                ->has('settingsTabs', 10));
+                ->has('settingsTabs', 11));
 
         $this->actingAs($staff)->getJson(route('panel.settings.tabs.show', 'email'))
             ->assertOk()

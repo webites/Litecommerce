@@ -10,9 +10,13 @@ use Litecommerce\Modules\Catalog\Application\CatalogDemoDataContributor;
 use Litecommerce\Modules\Catalog\Contracts\BrandCatalog;
 use Litecommerce\Modules\Catalog\Contracts\CatalogSeoSettingsRepository;
 use Litecommerce\Modules\Catalog\Contracts\CategoryCatalog;
+use Litecommerce\Modules\Catalog\Contracts\CoreProductType;
 use Litecommerce\Modules\Catalog\Contracts\ProductCatalog;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeDescriptor;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\SearchDocumentSource;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
+use Litecommerce\Modules\Catalog\Infrastructure\InMemoryProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentBrandCatalog;
 use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentCatalogSeoSettingsRepository;
 use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentCategoryCatalog;
@@ -27,6 +31,13 @@ final class CatalogServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(ProductTypeRegistry::class, static function (): ProductTypeRegistry {
+            $registry = new InMemoryProductTypeRegistry;
+            $registry->register(new ProductTypeDescriptor(CoreProductType::Physical->value, 'catalog::product_types.physical', tracksStock: true, requiresDelivery: true, grantsDigitalAccess: false, soldAsSingleUnit: false));
+            $registry->register(new ProductTypeDescriptor(CoreProductType::Digital->value, 'catalog::product_types.digital', tracksStock: false, requiresDelivery: false, grantsDigitalAccess: true, soldAsSingleUnit: true));
+
+            return $registry;
+        });
         $this->app->tag([StoredCatalogHtml::class], 'store.html_content');
         $this->app->bind(VariantCatalog::class, EloquentVariantCatalog::class);
         $this->app->bind(ProductCatalog::class, EloquentProductCatalog::class);

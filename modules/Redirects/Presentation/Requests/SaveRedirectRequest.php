@@ -28,7 +28,7 @@ final class SaveRedirectRequest extends FormRequest
             'required', 'string', 'max:255', 'starts_with:/', 'regex:/^\/[a-zA-Z0-9\-_\/.]*$/',
             function (string $attribute, mixed $value, \Closure $fail): void {
                 if (is_string($value) && str_contains($value, '..')) {
-                    $fail('Adres nie może zawierać „..”.');
+                    $fail(trans('redirects::validation.path_dots'));
                 }
             },
         ];

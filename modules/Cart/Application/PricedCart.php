@@ -15,6 +15,8 @@ final readonly class PricedCart
      *                                                             code's status and product-side allocation (step 3) — step 6's
      *                                                             delivery share is layered on top by PriceCheckoutDraft, since
      *                                                             plain cart pricing has no delivery amount to spend it against.
+     * @param  list<array{code:string,label:string,net_amount:string,vat_amount:string,gross_amount:string}>  $adjustments  Order-level
+     *                                                                                                                      extra charges and discounts from PricingAdjustment plugins, applied after coupons.
      */
     public function __construct(
         public string $currencyCode,
@@ -25,6 +27,7 @@ final readonly class PricedCart
         public bool $allAvailable,
         public ?PricedDelivery $delivery = null,
         public array $couponOutcomes = [],
+        public array $adjustments = [],
     ) {}
 
     /**
@@ -34,17 +37,28 @@ final readonly class PricedCart
      */
     public function grandTotalNetAmount(): string
     {
-        return $this->delivery?->finalNetAmount === null ? $this->totalNetAmount : $this->sum($this->totalNetAmount, $this->delivery->finalNetAmount);
+        $products = $this->delivery?->finalNetAmount === null ? $this->totalNetAmount : $this->sum($this->totalNetAmount, $this->delivery->finalNetAmount);
+
+        return $this->sum($products, $this->adjustmentsTotal('net_amount'));
     }
 
     public function grandTotalVatAmount(): string
     {
-        return $this->delivery?->finalVatAmount === null ? $this->totalVatAmount : $this->sum($this->totalVatAmount, $this->delivery->finalVatAmount);
+        $products = $this->delivery?->finalVatAmount === null ? $this->totalVatAmount : $this->sum($this->totalVatAmount, $this->delivery->finalVatAmount);
+
+        return $this->sum($products, $this->adjustmentsTotal('vat_amount'));
     }
 
     public function grandTotalGrossAmount(): string
     {
-        return $this->delivery?->finalGrossAmount === null ? $this->totalGrossAmount : $this->sum($this->totalGrossAmount, $this->delivery->finalGrossAmount);
+        $products = $this->delivery?->finalGrossAmount === null ? $this->totalGrossAmount : $this->sum($this->totalGrossAmount, $this->delivery->finalGrossAmount);
+
+        return $this->sum($products, $this->adjustmentsTotal('gross_amount'));
+    }
+
+    private function adjustmentsTotal(string $field): string
+    {
+        return array_reduce($this->adjustments, static fn (string $sum, array $adjustment): string => Decimal::add($sum, $adjustment[$field]), '0');
     }
 
     /**

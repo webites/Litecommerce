@@ -2,6 +2,7 @@
 
 return [
     'connection_failed' => 'Could not connect to the database. Check your credentials.',
+    'theme' => 'Switch theme',
     'language' => 'Language',
     'back_to_start' => 'Start over',
     'continue' => 'Continue',

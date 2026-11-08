@@ -90,7 +90,7 @@ final class ArchetypeTemplateController extends Controller
             ],
             'saveUrl' => route('panel.cms.archetypes.update', $key),
             'backUrl' => route('panel.cms.archetypes.index'),
-            'backLabel' => 'Wróć do listy szablonów',
+            'backLabel' => trans('cms::labels.back_to_templates'),
             'editUrl' => route('panel.cms.archetypes.edit', $key),
             'currentLocale' => $locale,
             'isUntranslated' => $isUntranslated,
@@ -126,7 +126,7 @@ final class ArchetypeTemplateController extends Controller
 
         $this->audit($audit, 'cms.archetype_template.saved', $key, []);
 
-        return back()->with('status', 'Szablon został opublikowany.');
+        return back()->with('status', trans('cms::flash.template_published'));
     }
 
     public function restoreDefault(string $key, ArchetypeRegistry $registry, DeleteArchetypeTemplate $deleter, AuditLogger $audit): RedirectResponse
@@ -139,7 +139,7 @@ final class ArchetypeTemplateController extends Controller
             $this->audit($audit, 'cms.archetype_template.reset', $key, []);
         }
 
-        return back()->with('status', 'Przywrócono domyślny szablon motywu.');
+        return back()->with('status', trans('cms::flash.template_reset'));
     }
 
     /** @return array{key: string, label: string, availableTags: array<string, string>} */

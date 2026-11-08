@@ -53,7 +53,7 @@ final class MenuController extends Controller
 
         $this->audit($audit, 'cms.menu.created', (string) $menu->getKey());
 
-        return redirect()->route('panel.cms.menus.edit', $menu)->with('status', 'Menu zostało utworzone.');
+        return redirect()->route('panel.cms.menus.edit', $menu)->with('status', trans('cms::flash.menu_created'));
     }
 
     /**
@@ -171,7 +171,7 @@ final class MenuController extends Controller
 
         $this->audit($audit, 'cms.menu.updated', (string) $menu->getKey());
 
-        return back()->with('status', 'Ustawienia menu zostały zapisane.');
+        return back()->with('status', trans('cms::flash.menu_settings_saved'));
     }
 
     public function updateItems(SaveMenuItemsRequest $request, int $menu, SaveMenuItems $saver, AuditLogger $audit): RedirectResponse
@@ -186,7 +186,7 @@ final class MenuController extends Controller
 
         $this->audit($audit, 'cms.menu.items_updated', (string) $menu->getKey());
 
-        return back()->with('status', 'Menu zostało zapisane.');
+        return back()->with('status', trans('cms::flash.menu_saved'));
     }
 
     public function destroy(int $menu, DeleteMenu $deleter, AuditLogger $audit): RedirectResponse
@@ -202,12 +202,12 @@ final class MenuController extends Controller
 
         $this->audit($audit, 'cms.menu.deleted', $id);
 
-        return redirect()->route('panel.cms.menus.index')->with('status', 'Menu zostało usunięte.');
+        return redirect()->route('panel.cms.menus.index')->with('status', trans('cms::flash.menu_removed'));
     }
 
     private function menuNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.cms.menus.index')->with('error', 'Menu nie zostało znalezione.');
+        return redirect()->route('panel.cms.menus.index')->with('error', trans('cms::flash.menu_not_found'));
     }
 
     /** @return array<string, string> location id => label */

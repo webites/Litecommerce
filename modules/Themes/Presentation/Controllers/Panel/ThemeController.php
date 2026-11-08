@@ -132,7 +132,7 @@ final class ThemeController extends Controller
 
     private function themeNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.themes.index')->with('error', 'Motyw nie został znaleziony.');
+        return redirect()->route('panel.themes.index')->with('error', trans('themes::flash.not_found'));
     }
 
     /** @return array<string, mixed> */

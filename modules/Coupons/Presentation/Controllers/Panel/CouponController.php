@@ -128,7 +128,7 @@ final class CouponController extends Controller
 
     private function couponNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.coupons.index')->with('error', 'Kupon nie został znaleziony.');
+        return redirect()->route('panel.coupons.index')->with('error', trans('coupons::flash.not_found'));
     }
 
     /** @param  array<int, string>  $emails */

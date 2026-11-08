@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 use Litecommerce\Modules\Catalog\Contracts\ProductCatalog;
 use Litecommerce\Modules\Catalog\Contracts\ProductOptionAxisData;
 use Litecommerce\Modules\Catalog\Contracts\ProductOptionValueData;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\VariantSummaryData;
 use Litecommerce\Modules\Catalog\Contracts\VariantUrlBuilder;
 use Litecommerce\Modules\Pricing\Contracts\PriceQuoter;
@@ -34,6 +34,8 @@ use Litecommerce\Modules\Warehouse\Contracts\StockLevelCatalog;
  */
 final class CatalogController extends Controller
 {
+    public function __construct(private readonly ProductTypeRegistry $productTypes) {}
+
     public function index(Request $request, string $locale, ProductSearchListingBuilder $listings, ThemeRenderer $renderer): View
     {
         $categoryId = $request->integer('category') ?: null;
@@ -240,7 +242,7 @@ final class CatalogController extends Controller
 
     private function isAvailable(string $productType, ?StockItemData $stockItem): bool
     {
-        if ($productType === ProductType::Digital->value) {
+        if (! $this->productTypes->get($productType)->tracksStock) {
             return true;
         }
 

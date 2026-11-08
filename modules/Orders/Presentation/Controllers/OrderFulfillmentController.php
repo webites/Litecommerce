@@ -21,7 +21,7 @@ final class OrderFulfillmentController extends Controller
         $deadline = isset($data['pickup_deadline_at']) ? new \DateTimeImmutable((string) $data['pickup_deadline_at']) : null;
         $actor = (string) $request->user()?->getAuthIdentifier();
 
-        return $this->run(fn (): bool => $fulfillment->markReadyForPickup($order, $actor, $deadline), $audit, $actor, $order, 'orders.fulfillment.ready_for_pickup', ['pickup_deadline_at' => $data['pickup_deadline_at'] ?? null], 'Zamówienie oznaczono jako gotowe do odbioru, klient dostał e-mail.');
+        return $this->run(fn (): bool => $fulfillment->markReadyForPickup($order, $actor, $deadline), $audit, $actor, $order, 'orders.fulfillment.ready_for_pickup', ['pickup_deadline_at' => $data['pickup_deadline_at'] ?? null], trans('orders::flash.ready_for_pickup'));
     }
 
     public function handOver(Request $request, string $order, OrderFulfillmentManager $fulfillment, AuditLogger $audit): RedirectResponse
@@ -31,7 +31,7 @@ final class OrderFulfillmentController extends Controller
         $paidAt = isset($data['paid_at']) ? new \DateTimeImmutable((string) $data['paid_at']) : null;
         $actor = (string) $request->user()?->getAuthIdentifier();
 
-        return $this->run(fn (): bool => $fulfillment->confirmHandover($order, $actor, $reference, $paidAt), $audit, $actor, $order, 'orders.fulfillment.handed_over', ['payment_reference' => $reference], 'Wydanie towaru zostało zapisane.');
+        return $this->run(fn (): bool => $fulfillment->confirmHandover($order, $actor, $reference, $paidAt), $audit, $actor, $order, 'orders.fulfillment.handed_over', ['payment_reference' => $reference], trans('orders::flash.handed_over'));
     }
 
     /** @param array<string, mixed> $changes */

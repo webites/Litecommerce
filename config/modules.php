@@ -29,6 +29,7 @@ use Litecommerce\Modules\Setup\Providers\SetupServiceProvider;
 use Litecommerce\Modules\Store\Providers\StoreServiceProvider;
 use Litecommerce\Modules\Storefront\Providers\StorefrontServiceProvider;
 use Litecommerce\Modules\Themes\Providers\ThemesServiceProvider;
+use Litecommerce\Modules\Updates\Providers\UpdatesServiceProvider;
 use Litecommerce\Modules\Warehouse\Providers\WarehouseServiceProvider;
 
 return [
@@ -68,6 +69,11 @@ return [
         'maintenance' => [
             'enabled' => true,
             'provider' => MaintenanceServiceProvider::class,
+        ],
+
+        'updates' => [
+            'enabled' => true,
+            'provider' => UpdatesServiceProvider::class,
         ],
 
         'consents' => [

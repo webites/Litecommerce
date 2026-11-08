@@ -1,3 +1,4 @@
+import RequestErrorNotice from '@/Components/panel/RequestErrorNotice';
 import { Link } from '@inertiajs/react';
 
 /**
@@ -32,6 +33,7 @@ export default function GuestLayout({ children, width = 380 }) {
                 >
                     Litecommerce
                 </Link>
+                <RequestErrorNotice />
                 <div
                     style={{
                         background: 'var(--bg-surface)',

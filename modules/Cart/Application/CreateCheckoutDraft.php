@@ -25,7 +25,7 @@ final class CreateCheckoutDraft
             $this->assertOpen($cart);
 
             if ($cart->items()->doesntExist()) {
-                throw new CartValidationException('empty_cart', 'Koszyk jest pusty.');
+                throw new CartValidationException('empty_cart', 'The cart is empty.');
             }
 
             $existing = CheckoutDraft::query()

@@ -48,7 +48,7 @@ final class OrderProjector
             $order->lines->map(fn (OrderLine $line): OrderLineDetailData => new OrderLineDetailData(
                 (int) $line->getKey(), (int) $line->variant_id, $line->product_type, $line->sku, $line->display_name,
                 (string) $line->quantity, (string) $line->line_net_amount, (string) $line->line_vat_amount, (string) $line->line_gross_amount,
-                $this->couponAllocations($line->allocations_snapshot),
+                $this->couponAllocations($line->allocations_snapshot), $line->allocations_snapshot['adjustments'] ?? [],
             ))->values()->all(),
         );
     }
@@ -72,7 +72,7 @@ final class OrderProjector
             $order->lines->map(fn (OrderLine $line): OrderLineDetailData => new OrderLineDetailData(
                 (int) $line->getKey(), (int) $line->variant_id, $line->product_type, $line->sku, $line->display_name,
                 (string) $line->quantity, (string) $line->line_net_amount, (string) $line->line_vat_amount, (string) $line->line_gross_amount,
-                $this->couponAllocations($line->allocations_snapshot),
+                $this->couponAllocations($line->allocations_snapshot), $line->allocations_snapshot['adjustments'] ?? [],
             ))->values()->all(),
             $order->paid_at === null ? null : \DateTimeImmutable::createFromInterface($order->paid_at),
             $order->created_at === null ? null : \DateTimeImmutable::createFromInterface($order->created_at),

@@ -6,7 +6,10 @@ namespace Litecommerce\Modules\Orders\Contracts;
 
 final readonly class OrderPlacementLineData
 {
-    /** @param  list<array{code:string,amount:string,base_amount:string}>  $couponAllocations */
+    /**
+     * @param  list<array{code:string,amount:string,base_amount:string}>  $couponAllocations
+     * @param  list<array{code:string,label:string,net_amount:string,vat_amount:string,gross_amount:string}>  $adjustmentAllocations
+     */
     public function __construct(
         public int $variantId,
         public string $productType,
@@ -18,5 +21,6 @@ final readonly class OrderPlacementLineData
         public string $lineVatAmount,
         public string $lineGrossAmount,
         public array $couponAllocations = [],
+        public array $adjustmentAllocations = [],
     ) {}
 }

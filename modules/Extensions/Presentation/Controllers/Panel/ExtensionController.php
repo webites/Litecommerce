@@ -87,7 +87,7 @@ final class ExtensionController extends Controller
             metadata: ['version' => $extension->version, 'package_sha256' => $extension->package_sha256],
         ));
 
-        return back()->with('status', 'Paczka została wgrana i jest gotowa do instalacji.');
+        return back()->with('status', trans('extensions::flash.package_uploaded'));
     }
 
     public function install(string $extension, InstallExtension $action): RedirectResponse
@@ -98,7 +98,7 @@ final class ExtensionController extends Controller
             return back()->withErrors(['extension' => trans("extensions::errors.{$exception->errorCode}", $exception->params)]);
         }
 
-        return back()->with('status', 'Rozszerzenie zostało zainstalowane.');
+        return back()->with('status', trans('extensions::flash.installed'));
     }
 
     public function enable(string $extension, EnableExtension $action): RedirectResponse
@@ -109,7 +109,7 @@ final class ExtensionController extends Controller
             return back()->withErrors(['extension' => $exception->getMessage()]);
         }
 
-        return back()->with('status', 'Rozszerzenie zostało włączone.');
+        return back()->with('status', trans('extensions::flash.enabled'));
     }
 
     public function disable(string $extension, DisableExtension $action): RedirectResponse
@@ -120,7 +120,7 @@ final class ExtensionController extends Controller
             return back()->withErrors(['extension' => $exception->getMessage()]);
         }
 
-        return back()->with('status', 'Rozszerzenie zostało wyłączone.');
+        return back()->with('status', trans('extensions::flash.disabled'));
     }
 
     public function destroy(string $extension, UninstallExtension $action): RedirectResponse
@@ -131,7 +131,7 @@ final class ExtensionController extends Controller
             return back()->withErrors(['extension' => $exception->getMessage()]);
         }
 
-        return redirect()->route('panel.extensions.index')->with('status', 'Rozszerzenie zostało odinstalowane.');
+        return redirect()->route('panel.extensions.index')->with('status', trans('extensions::flash.uninstalled'));
     }
 
     public function updateSettings(Request $request, string $extension): RedirectResponse
@@ -161,12 +161,12 @@ final class ExtensionController extends Controller
             );
         }
 
-        return back()->with('status', 'Ustawienia rozszerzenia zostały zapisane.');
+        return back()->with('status', trans('extensions::flash.settings_saved'));
     }
 
     private function extensionNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.extensions.index')->with('error', 'Rozszerzenie nie zostało znalezione.');
+        return redirect()->route('panel.extensions.index')->with('error', trans('extensions::flash.not_found'));
     }
 
     /** @return array<string, mixed> */

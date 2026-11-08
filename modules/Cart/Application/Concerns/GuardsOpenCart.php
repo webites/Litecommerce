@@ -19,7 +19,7 @@ trait GuardsOpenCart
     private function assertOpen(Cart $cart): void
     {
         if ($cart->status === 'checked_out') {
-            throw new CartValidationException('cart_checked_out', 'Ten koszyk został już zamknięty przez złożenie zamówienia. Odśwież stronę.');
+            throw new CartValidationException('cart_checked_out', 'The cart has already been checked out.');
         }
     }
 }
