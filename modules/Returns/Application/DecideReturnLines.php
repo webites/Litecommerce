@@ -6,7 +6,7 @@ namespace Litecommerce\Modules\Returns\Application;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Coupons\Contracts\CouponReservationManager;
 use Litecommerce\Modules\Digital\Contracts\DigitalAccessManager;
 use Litecommerce\Modules\Email\Contracts\EmailEnvelope;
@@ -46,6 +46,7 @@ final class DecideReturnLines
         private readonly TransactionalEmailQueue $emails,
         private readonly GuestOrderAccess $guestOrders,
         private readonly StoreSettingsReader $store,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     /** @param  list<array{line_id:int,decision:string,restock?:bool,restocked_quantity?:?string,decision_reason?:?string}>  $decisions */
@@ -63,7 +64,7 @@ final class DecideReturnLines
 
             $approvedIds = [];
             $decisionCount = 0;
-            $totals = ['net' => '0', 'vat' => '0', 'gross' => '0', 'coupon' => '0'];
+            $totals = ['net' => '0', 'vat' => '0', 'gross' => '0', 'coupon' => '0', 'adj_net' => '0', 'adj_vat' => '0', 'adj_gross' => '0'];
 
             foreach ($decisions as $decision) {
                 /** @var ReturnLine $line */
@@ -123,9 +124,20 @@ final class DecideReturnLines
                     }
                 }
 
-                $moneyRefund = Decimal::sub($grossAmount, $couponTotal);
-                $isDigital = $orderLine->productType === ProductType::Digital->value;
-                $restock = ! $isDigital && (bool) ($decision['restock'] ?? false);
+                $adjustmentAllocations = [];
+                $adjustmentTotals = ['net_amount' => '0', 'vat_amount' => '0', 'gross_amount' => '0'];
+                foreach ($orderLine->adjustmentAllocations as $adjustment) {
+                    $share = ['code' => $adjustment['code'], 'label' => $adjustment['label']];
+                    foreach ($adjustmentTotals as $field => $total) {
+                        $share[$field] = $this->allocate($adjustment[$field], $line->quantity, $orderLine->quantity, $this->sumAdjustment($alreadyApproved, $adjustment['code'], $field), $isFinal, $decimals);
+                        $adjustmentTotals[$field] = Decimal::add($total, $share[$field]);
+                    }
+                    $adjustmentAllocations[] = $share;
+                }
+
+                $moneyRefund = Decimal::add(Decimal::sub($grossAmount, $couponTotal), $adjustmentTotals['gross_amount']);
+                $productType = $this->productTypes->get($orderLine->productType);
+                $restock = $productType->tracksStock && (bool) ($decision['restock'] ?? false);
                 $restockedQuantity = $restock ? ($decision['restocked_quantity'] ?? $line->quantity) : null;
                 if ($restock && Decimal::compare($restockedQuantity, $line->quantity) > 0) {
                     throw new ReturnOperationException('restocked_quantity_exceeds_returned', "Restocked quantity for line [{$line->order_line_id}] cannot exceed the returned quantity.", ['line_id' => (string) $line->order_line_id]);
@@ -134,14 +146,14 @@ final class DecideReturnLines
                 $line->update([
                     'status' => 'approved', 'restock' => $restock, 'restocked_quantity' => $restockedQuantity,
                     'net_amount' => $netAmount, 'vat_amount' => $vatAmount, 'gross_amount' => $grossAmount,
-                    'coupon_allocations' => $couponAllocations, 'money_refund_amount' => $moneyRefund,
+                    'coupon_allocations' => $couponAllocations, 'adjustment_allocations' => $adjustmentAllocations, 'money_refund_amount' => $moneyRefund,
                     'decided_by' => $actorId, 'decided_at' => now(),
                 ]);
 
                 if ($restock) {
                     $this->stock->returnToStock((int) $orderLine->variantId, (string) $restockedQuantity, trans('returns::panel.reasons.return_approved_line', ['line_id' => $line->id]), $actorId);
                 }
-                if ($isDigital) {
+                if ($productType->grantsDigitalAccess) {
                     $this->digitalAccess->revokeForReference('order_line', (string) $orderLine->id, trans('returns::panel.reasons.return_confirmed'));
                 }
 
@@ -151,12 +163,15 @@ final class DecideReturnLines
                 $totals['vat'] = Decimal::add($totals['vat'], $vatAmount);
                 $totals['gross'] = Decimal::add($totals['gross'], $grossAmount);
                 $totals['coupon'] = Decimal::add($totals['coupon'], $couponTotal);
+                $totals['adj_net'] = Decimal::add($totals['adj_net'], $adjustmentTotals['net_amount']);
+                $totals['adj_vat'] = Decimal::add($totals['adj_vat'], $adjustmentTotals['vat_amount']);
+                $totals['adj_gross'] = Decimal::add($totals['adj_gross'], $adjustmentTotals['gross_amount']);
             }
 
             $refundData = null;
             if ($approvedIds !== []) {
                 [$deliveryNet, $deliveryVat, $deliveryGross] = $this->deliveryRefund($order, $deliveryRefundGrossAmount, $decimals);
-                $moneyRefundTotal = Decimal::sub($totals['gross'], $totals['coupon']);
+                $moneyRefundTotal = Decimal::add(Decimal::sub($totals['gross'], $totals['coupon']), $totals['adj_gross']);
                 if ($deliveryGross !== null) {
                     $moneyRefundTotal = Decimal::add($moneyRefundTotal, $deliveryGross);
                 }
@@ -165,6 +180,7 @@ final class DecideReturnLines
                     'order_id' => $order->id, 'currency_code' => $order->currencyCode,
                     'products_net_amount' => $totals['net'], 'products_vat_amount' => $totals['vat'],
                     'products_gross_amount' => $totals['gross'], 'coupon_restored_amount' => $totals['coupon'],
+                    'adjustments_net_amount' => $totals['adj_net'], 'adjustments_vat_amount' => $totals['adj_vat'], 'adjustments_gross_amount' => $totals['adj_gross'],
                     'delivery_net_amount' => $deliveryNet, 'delivery_vat_amount' => $deliveryVat, 'delivery_gross_amount' => $deliveryGross,
                     'money_refund_amount' => $moneyRefundTotal, 'decided_by' => $actorId, 'decided_at' => now(),
                 ]);
@@ -228,6 +244,19 @@ final class DecideReturnLines
             foreach ($line->coupon_allocations ?? [] as $allocation) {
                 if ($allocation['code'] === $code) {
                     return Decimal::add($carry, $allocation[$field] ?? $allocation['amount']);
+                }
+            }
+
+            return $carry;
+        }, '0');
+    }
+
+    private function sumAdjustment($lines, string $code, string $field): string
+    {
+        return $lines->reduce(function (string $carry, ReturnLine $line) use ($code, $field): string {
+            foreach ($line->adjustment_allocations ?? [] as $allocation) {
+                if ($allocation['code'] === $code) {
+                    return Decimal::add($carry, $allocation[$field]);
                 }
             }
 

@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Litecommerce\Modules\Catalog\Contracts\ProductStatus;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\ProductUnit;
 use Litecommerce\Modules\Catalog\Contracts\VariantSeoMode;
 use Litecommerce\Modules\Catalog\Domain\ValidGtin;
@@ -30,7 +30,7 @@ class StoreProductRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'short_description' => ['nullable', 'string', 'max:5000'],
             'description_html' => ['nullable', 'string', 'max:1000000'],
-            'type' => ['required', Rule::enum(ProductType::class)],
+            'type' => ['required', Rule::in(array_map(static fn ($type): string => $type->key, app(ProductTypeRegistry::class)->all()))],
             'status' => ['required', Rule::enum(ProductStatus::class)],
             'variant_seo_mode' => ['nullable', Rule::enum(VariantSeoMode::class)],
             'featured' => ['required', 'boolean'],
@@ -66,23 +66,23 @@ class StoreProductRequest extends FormRequest
             $step = (string) $this->input('quantity_step');
 
             if (is_numeric($minimum) && bccomp($minimum, '0', 6) <= 0) {
-                $validator->errors()->add('minimum_quantity', 'Minimalna ilość musi być większa od zera.');
+                $validator->errors()->add('minimum_quantity', trans('catalog::validation.minimum_quantity'));
             }
 
             if (is_numeric($step) && bccomp($step, '0', 6) <= 0) {
-                $validator->errors()->add('quantity_step', 'Krok ilości musi być większy od zera.');
+                $validator->errors()->add('quantity_step', trans('catalog::validation.quantity_step'));
             }
 
             if (is_string($maximum) && is_numeric($maximum) && is_numeric($minimum) && bccomp($maximum, $minimum, 6) < 0) {
-                $validator->errors()->add('maximum_quantity', 'Maksymalna ilość nie może być mniejsza od minimalnej.');
+                $validator->errors()->add('maximum_quantity', trans('catalog::validation.maximum_quantity'));
             }
 
-            if ($this->input('type') === ProductType::Digital->value
+            if (app(ProductTypeRegistry::class)->get((string) $this->input('type'))->soldAsSingleUnit
                 && ($this->input('unit_code') !== ProductUnit::Piece->value
                     || bccomp($minimum, '1', 6) !== 0
                     || $maximum !== '1'
                     || bccomp($step, '1', 6) !== 0)) {
-                $validator->errors()->add('type', 'Produkt cyfrowy w MVP musi być sprzedawany pojedynczo, w ilości od 1 do 1.');
+                $validator->errors()->add('type', trans('catalog::validation.single_unit_type'));
             }
 
             $primaryCategoryId = $this->input('primary_category_id');
@@ -91,7 +91,7 @@ class StoreProductRequest extends FormRequest
             if ($primaryCategoryId !== null
                 && is_array($categoryIds)
                 && ! in_array((int) $primaryCategoryId, array_map('intval', $categoryIds), true)) {
-                $validator->errors()->add('primary_category_id', 'Kategoria główna musi być przypisana do produktu.');
+                $validator->errors()->add('primary_category_id', trans('catalog::validation.primary_category'));
             }
         }];
     }

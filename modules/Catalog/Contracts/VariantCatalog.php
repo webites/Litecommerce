@@ -9,13 +9,13 @@ interface VariantCatalog
     public function find(int $variantId): ?VariantData;
 
     /**
-     * Bulk, paginated listing of physical variants for cross-product
-     * views (e.g. a warehouse-wide stock list) — never resolve a listing
+     * Bulk, paginated listing of variants of stock-tracking product types for
+     * cross-product views (e.g. a warehouse-wide stock list) — never resolve a listing
      * with one find() call per row.
      *
      * @return array{items: list<VariantSummaryData>, total: int}
      */
-    public function paginatePhysical(string $locale, int $perPage, int $page): array;
+    public function paginateStockTracked(string $locale, int $perPage, int $page): array;
 
     /**
      * Bulk read by id, of either product type, for callers that already

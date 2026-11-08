@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $vat_amount
  * @property string|null $gross_amount
  * @property list<array{code:string,amount:string,base_amount:string}>|null $coupon_allocations
+ * @property list<array{code:string,label:string,net_amount:string,vat_amount:string,gross_amount:string}>|null $adjustment_allocations
  * @property string|null $money_refund_amount
  * @property int|null $refund_record_id
  * @property string|null $decision_reason
@@ -36,7 +37,7 @@ final class ReturnLine extends Model
         return [
             'quantity' => 'decimal:6', 'restocked_quantity' => 'decimal:6',
             'net_amount' => 'decimal:6', 'vat_amount' => 'decimal:6', 'gross_amount' => 'decimal:6',
-            'money_refund_amount' => 'decimal:6', 'coupon_allocations' => 'array',
+            'money_refund_amount' => 'decimal:6', 'coupon_allocations' => 'array', 'adjustment_allocations' => 'array',
             'restock' => 'boolean', 'decided_at' => 'datetime',
         ];
     }

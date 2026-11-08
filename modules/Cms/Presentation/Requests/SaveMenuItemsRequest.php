@@ -58,34 +58,34 @@ final class SaveMenuItemsRequest extends FormRequest
         $type = MenuItemType::tryFrom(is_string($node['type'] ?? null) ? $node['type'] : '');
 
         if ($type === null) {
-            $validator->errors()->add("{$path}.type", 'Nieprawidłowy typ pozycji menu.');
+            $validator->errors()->add("{$path}.type", trans('cms::validation.menu_item_type'));
 
             return;
         }
 
         if (! is_string($node['id'] ?? null) || $node['id'] === '') {
-            $validator->errors()->add("{$path}.id", 'Pozycja menu musi mieć identyfikator.');
+            $validator->errors()->add("{$path}.id", trans('cms::validation.menu_item_id'));
         }
 
         match ($type) {
             MenuItemType::Page, MenuItemType::Archetype => is_scalar($node['referenceId'] ?? null)
                 ? null
-                : $validator->errors()->add("{$path}.referenceId", 'Ta pozycja musi wskazywać konkretną stronę/instancję.'),
+                : $validator->errors()->add("{$path}.referenceId", trans('cms::validation.menu_item_instance')),
             MenuItemType::Widget => is_string($node['referenceKey'] ?? null) && $node['referenceKey'] !== ''
                 ? null
-                : $validator->errors()->add("{$path}.referenceKey", 'Ta pozycja musi wskazywać widżet.'),
+                : $validator->errors()->add("{$path}.referenceKey", trans('cms::validation.menu_item_widget')),
             MenuItemType::Custom => is_string($node['url'] ?? null) && $node['url'] !== ''
                 ? null
-                : $validator->errors()->add("{$path}.url", 'Link niestandardowy musi mieć adres URL.'),
+                : $validator->errors()->add("{$path}.url", trans('cms::validation.menu_item_url')),
         };
 
         if ($type === MenuItemType::Archetype && (! is_string($node['referenceKey'] ?? null) || $node['referenceKey'] === '')) {
-            $validator->errors()->add("{$path}.referenceKey", 'Ta pozycja musi wskazywać typ archetypu.');
+            $validator->errors()->add("{$path}.referenceKey", trans('cms::validation.menu_item_archetype'));
         }
 
         if (isset($node['children'])) {
             if (! is_array($node['children'])) {
-                $validator->errors()->add("{$path}.children", 'Pole "children" musi być listą.');
+                $validator->errors()->add("{$path}.children", trans('cms::validation.menu_item_children'));
 
                 return;
             }

@@ -29,7 +29,7 @@ final class UpdateCartItemQuantity
     public function execute(int $cartId, int $variantId, string $quantity, string $locale): void
     {
         if (Quantity::compare($quantity, '0') < 0) {
-            throw new CartValidationException('invalid_quantity', 'Ilość nie może być ujemna.');
+            throw new CartValidationException('invalid_quantity', 'The quantity is invalid.');
         }
 
         DB::transaction(function () use ($cartId, $variantId, $quantity, $locale): void {
@@ -38,7 +38,7 @@ final class UpdateCartItemQuantity
             $item = CartItem::query()->where('cart_id', $cart->id)->where('variant_id', $variantId)->first();
 
             if ($item === null) {
-                throw new CartValidationException('item_not_found', 'Ta pozycja nie znajduje się w koszyku.');
+                throw new CartValidationException('item_not_found', 'The item is not in the cart.');
             }
 
             if (Quantity::compare($quantity, '0') === 0) {
@@ -47,15 +47,15 @@ final class UpdateCartItemQuantity
                 $variant = $this->variants->findMany([$variantId], $locale)[$variantId] ?? null;
 
                 if ($variant === null || ! $variant->enabled) {
-                    throw new CartValidationException('variant_unavailable', 'Ten produkt jest niedostępny.');
+                    throw new CartValidationException('variant_unavailable', 'The product is unavailable.');
                 }
 
                 if ($this->prices->quote($variantId, $cart->currency_code, $quantity) === null) {
-                    throw new CartValidationException('no_price', 'Ten produkt nie ma jeszcze ceny.');
+                    throw new CartValidationException('no_price', 'The product has no price yet.');
                 }
 
                 if (! Quantity::isWithinBounds($quantity, $variant->minimumQuantity, $variant->maximumQuantity, $variant->quantityStep)) {
-                    throw new CartValidationException('quantity_out_of_bounds', 'Żądana ilość przekracza dopuszczalny zakres dla tego produktu.');
+                    throw new CartValidationException('quantity_out_of_bounds', 'The requested quantity is out of range.');
                 }
 
                 $item->update(['quantity' => $quantity]);

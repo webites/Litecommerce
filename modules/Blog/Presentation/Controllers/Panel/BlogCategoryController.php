@@ -41,7 +41,7 @@ final class BlogCategoryController extends Controller
                     $translation = $category->translations->first();
 
                     if ($translation === null) {
-                        return ['id' => (int) $category->getKey(), 'name' => 'Brak tłumaczenia', 'slug' => '', 'description' => '', 'seo_title' => '', 'seo_description' => ''];
+                        return ['id' => (int) $category->getKey(), 'name' => trans('blog::labels.no_translation'), 'slug' => '', 'description' => '', 'seo_title' => '', 'seo_description' => ''];
                     }
 
                     return [
@@ -61,7 +61,7 @@ final class BlogCategoryController extends Controller
         $category = $saver->handle(null, $this->data($request));
         $this->audit($request, $audit, 'blog.category.created', $category);
 
-        return back()->with('status', 'Kategoria bloga została utworzona.');
+        return back()->with('status', trans('blog::flash.category_created'));
     }
 
     public function update(SaveBlogCategoryRequest $request, int $category, SaveBlogCategory $saver, AuditLogger $audit): RedirectResponse
@@ -79,7 +79,7 @@ final class BlogCategoryController extends Controller
         $saver->handle($categoryModel, $this->data($request));
         $this->audit($request, $audit, 'blog.category.saved', $categoryModel);
 
-        $response = back()->with('status', 'Kategoria bloga została zapisana.');
+        $response = back()->with('status', trans('blog::flash.category_saved'));
 
         if ($wasPublished && $oldSlug !== null && $oldSlug !== $newSlug) {
             $response->with('redirectSuggestion', ['locale' => $locale, 'from_path' => "/blog/category/{$oldSlug}", 'to_path' => "/blog/category/{$newSlug}"]);
@@ -99,7 +99,7 @@ final class BlogCategoryController extends Controller
         $this->audit($request, $audit, 'blog.category.archived', $categoryModel);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new BlogContentChanged));
 
-        return back()->with('status', 'Kategoria bloga została zarchiwizowana.');
+        return back()->with('status', trans('blog::flash.category_archived'));
     }
 
     private function data(SaveBlogCategoryRequest $request): SaveBlogCategoryData
@@ -121,7 +121,7 @@ final class BlogCategoryController extends Controller
 
     private function notFound(): RedirectResponse
     {
-        return redirect()->route('panel.blog.categories.index')->with('error', 'Kategoria bloga nie została znaleziona.');
+        return redirect()->route('panel.blog.categories.index')->with('error', trans('blog::flash.category_not_found'));
     }
 
     private function audit(Request $request, AuditLogger $audit, string $action, BlogCategory $category): void

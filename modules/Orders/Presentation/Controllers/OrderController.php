@@ -46,7 +46,7 @@ final class OrderController extends Controller
         ]);
     }
 
-    public function show(string $order, PaymentAttemptCatalog $payments, OrderStatusRegistry $statuses, CurrencyRepository $currencies, DigitalAccessCatalog $digitalAccess, ReturnCatalog $returns, EmailMessageCatalog $emailMessages, PickupFulfillmentPresenter $fulfillment): Response|RedirectResponse
+    public function show(string $order, PaymentAttemptCatalog $payments, OrderStatusRegistry $statuses, CurrencyRepository $currencies, DigitalAccessCatalog $digitalAccess, ReturnCatalog $returns, EmailMessageCatalog $emailMessages, PickupFulfillmentPresenter $fulfillment, GrantDigitalAccessAfterLatePayment $lateAccess): Response|RedirectResponse
     {
         $model = Order::query()->with(['party', 'delivery', 'lines', 'statusHistory', 'notes', 'couponUsages'])->find($order);
 
@@ -66,10 +66,11 @@ final class OrderController extends Controller
                 'party' => $model->party?->only(['buyer_type', 'email', 'company_name', 'tax_identifier', 'registration_number', 'phone', 'billing_address', 'shipping_address']),
                 'delivery' => $model->delivery?->only(['kind', 'name', 'net_amount', 'vat_amount', 'gross_amount', 'pickup_point_snapshot']),
                 'fulfillment' => $fulfillment->present($model),
-                'can_grant_digital_access' => GrantDigitalAccessAfterLatePayment::isEligible($model),
+                'adjustments' => $this->adjustmentTotals($model),
+                'can_grant_digital_access' => $lateAccess->isEligible($model),
                 'lines' => $model->lines->map(fn ($line): array => [
                     ...$line->only(['id', 'variant_id', 'product_type', 'sku', 'display_name', 'quantity', 'unit_amount', 'line_net_amount', 'line_vat_amount', 'line_gross_amount', 'stock_reservation_id']),
-                    'coupon_allocations' => $line->allocations_snapshot['coupons'] ?? [],
+                    'coupon_allocations' => $line->allocations_snapshot['coupons'] ?? [], 'adjustment_allocations' => $line->allocations_snapshot['adjustments'] ?? [],
                 ])->all(),
                 'coupon_usages' => $model->couponUsages->map(fn ($usage): array => $usage->only(['id', 'coupon_code', 'product_gross_amount', 'delivery_gross_amount']))->all(),
                 'status_history' => $model->statusHistory->sortByDesc('occurred_at')->values()->map(fn ($entry): array => $entry->only(['old_status', 'new_status', 'actor_type', 'actor_id', 'reason', 'occurred_at']))->all(),
@@ -120,7 +121,7 @@ final class OrderController extends Controller
         $manager->extend($grant, isset($data['until']) ? new \DateTimeImmutable((string) $data['until']) : null);
         $this->auditGrant($request, $audit, $order, $grant, 'orders.digital_access.extended', ['until' => $data['until'] ?? null]);
 
-        return back()->with('status', 'Termin dostępu cyfrowego został zaktualizowany.');
+        return back()->with('status', trans('orders::flash.digital_expiry_updated'));
     }
 
     public function setDigitalDownloadLimit(Request $request, string $order, int $grant, DigitalAccessManager $manager, AuditLogger $audit): RedirectResponse
@@ -129,7 +130,7 @@ final class OrderController extends Controller
         $manager->setDownloadLimit($grant, isset($data['max_downloads']) ? (int) $data['max_downloads'] : null);
         $this->auditGrant($request, $audit, $order, $grant, 'orders.digital_access.limit_updated', ['max_downloads' => $data['max_downloads'] ?? null]);
 
-        return back()->with('status', 'Limit pobrań został zaktualizowany.');
+        return back()->with('status', trans('orders::flash.digital_download_limit_updated'));
     }
 
     public function revokeDigitalAccess(Request $request, string $order, int $grant, DigitalAccessManager $manager, AuditLogger $audit): RedirectResponse
@@ -138,7 +139,7 @@ final class OrderController extends Controller
         $manager->revoke($grant, (string) $data['reason']);
         $this->auditGrant($request, $audit, $order, $grant, 'orders.digital_access.revoked', ['reason' => $data['reason']]);
 
-        return back()->with('status', 'Dostęp cyfrowy został cofnięty.');
+        return back()->with('status', trans('orders::flash.digital_access_revoked'));
     }
 
     /** @param array<string, mixed> $changes */
@@ -163,7 +164,7 @@ final class OrderController extends Controller
             return back()->withErrors(['reference' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Pełna wpłata została zarejestrowana.');
+        return back()->with('status', trans('orders::flash.full_payment_registered'));
     }
 
     public function cancel(Request $request, string $order, OrderPaymentManager $payments): RedirectResponse
@@ -171,7 +172,7 @@ final class OrderController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
         $payments->cancelUnpaid($order, (string) $data['reason'], (string) $request->user()->getAuthIdentifier());
 
-        return back()->with('status', 'Niezapłacone zamówienie zostało anulowane.');
+        return back()->with('status', trans('orders::flash.unpaid_order_cancelled'));
     }
 
     public function retryPayment(Request $request, string $order, PaymentAttemptStarter $payments): RedirectResponse
@@ -179,7 +180,7 @@ final class OrderController extends Controller
         $model = Order::query()->findOrFail($order);
         $payments->retry($model->id, $model->email);
 
-        return back()->with('status', 'Utworzono nową próbę płatności.');
+        return back()->with('status', trans('orders::flash.payment_attempt_created'));
     }
 
     public function updateStatus(Request $request, string $order, ManageOrder $orders): RedirectResponse
@@ -187,7 +188,7 @@ final class OrderController extends Controller
         $data = $request->validate(['status' => ['required', 'string', 'max:32'], 'reason' => ['nullable', 'string', 'max:1000']]);
         $orders->changeStatus($order, (string) $data['status'], (string) $request->user()->getAuthIdentifier(), $data['reason'] ?? null);
 
-        return back()->with('status', 'Status zamówienia został zmieniony.');
+        return back()->with('status', trans('orders::flash.status_changed'));
     }
 
     public function addNote(Request $request, string $order, ManageOrder $orders): RedirectResponse
@@ -195,7 +196,7 @@ final class OrderController extends Controller
         $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
         $orders->addNote($order, (string) $data['body'], (string) $request->user()->getAuthIdentifier());
 
-        return back()->with('status', 'Notatka została dodana.');
+        return back()->with('status', trans('orders::flash.note_added'));
     }
 
     public function sendCustomerMessage(Request $request, string $order, ManageOrder $orders): RedirectResponse
@@ -203,12 +204,12 @@ final class OrderController extends Controller
         $data = $request->validate(['body' => ['required', 'string', 'max:10000']]);
         $orders->sendCustomerMessage($order, (string) $data['body'], (string) $request->user()->getAuthIdentifier());
 
-        return back()->with('status', 'Wiadomość do klienta została dodana do kolejki.');
+        return back()->with('status', trans('orders::flash.message_queued'));
     }
 
     private function orderNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.orders.index')->with('error', 'Zamówienie nie zostało znalezione.');
+        return redirect()->route('panel.orders.index')->with('error', trans('orders::flash.not_found'));
     }
 
     private function summary(Order $order, int $decimalPlaces): array
@@ -223,5 +224,19 @@ final class OrderController extends Controller
             'payment_deadline_at' => $order->payment_deadline_at?->toIso8601String(),
             'paid_at' => $order->paid_at?->toIso8601String(), 'created_at' => $order->created_at?->toIso8601String(),
         ];
+    }
+
+    /** @return list<array{code: string, label: string, gross_amount: string}> */
+    private function adjustmentTotals(Order $order): array
+    {
+        $totals = [];
+        foreach ($order->lines as $line) {
+            foreach ($line->allocations_snapshot['adjustments'] ?? [] as $share) {
+                $totals[$share['code']] ??= ['code' => $share['code'], 'label' => $share['label'], 'gross_amount' => '0'];
+                $totals[$share['code']]['gross_amount'] = bcadd($totals[$share['code']]['gross_amount'], $share['gross_amount'], 6);
+            }
+        }
+
+        return array_values($totals);
     }
 }

@@ -38,7 +38,7 @@ final class StaffTwoFactorChallengeController extends Controller
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             throw ValidationException::withMessages([
-                'code' => 'Zbyt wiele prób. Spróbuj ponownie za minutę.',
+                'code' => trans('identity::flash.two_factor_throttled'),
             ]);
         }
 
@@ -46,7 +46,7 @@ final class StaffTwoFactorChallengeController extends Controller
             RateLimiter::hit($throttleKey, 60);
 
             throw ValidationException::withMessages([
-                'code' => 'Podany kod uwierzytelniający jest nieprawidłowy.',
+                'code' => trans('identity::flash.two_factor_invalid_code'),
             ]);
         }
 

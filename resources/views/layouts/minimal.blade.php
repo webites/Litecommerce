@@ -1,67 +1,102 @@
 <!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
     <title>@yield('title', 'Litecommerce') — Litecommerce</title>
+    <script>
+        (function () {
+            try {
+                var root = document.documentElement;
+                var stored = localStorage.getItem('lc-theme');
+                var media = window.matchMedia('(prefers-color-scheme: dark)');
+                var apply = function () { root.dataset.theme = stored ? stored : (media.matches ? 'dark' : 'light'); };
+                apply();
+                if (!stored) { media.addEventListener('change', apply); }
+                window.lcToggleTheme = function () {
+                    stored = root.dataset.theme === 'dark' ? 'light' : 'dark';
+                    localStorage.setItem('lc-theme', stored);
+                    apply();
+                };
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            color-scheme: light dark;
-            --bg: #f4f5f7; --card: #ffffff; --text: #1b1f27; --muted: #5d6675; --border: #dde1e8;
-            --accent: #2f5bea; --accent-text: #ffffff; --danger: #b3261e; --danger-bg: #fdecea;
-            --ok: #1d7a46; --ok-bg: #e7f5ec; --field: #ffffff;
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #12151b; --card: #1b2029; --text: #e8eaee; --muted: #9aa3b2; --border: #2c3340;
-                --accent: #7c9bff; --accent-text: #0f1420; --danger: #ff8a80; --danger-bg: #3a1f1d;
-                --ok: #6fd39a; --ok-bg: #16301f; --field: #12151b;
-            }
-        }
+        {!! file_get_contents(resource_path('css/design-tokens.css')) !!}
+
         * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-        .shell { max-width: 520px; margin: 0 auto; padding: 2rem 1rem 3rem; }
-        .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-        .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: .01em; }
-        .lang { display: flex; gap: .25rem; margin: 0; }
-        .lang button { margin: 0; padding: .25rem .6rem; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: .85rem; cursor: pointer; }
-        .lang button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-        .steps { display: flex; gap: .35rem; list-style: none; margin: 0 0 1rem; padding: 0; font-size: .8rem; color: var(--muted); }
-        .steps li { flex: 1; padding-top: .45rem; border-top: 3px solid var(--border); }
-        .steps li.done, .steps li.current { border-top-color: var(--accent); }
-        .steps li.current { color: var(--text); font-weight: 600; }
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-        h1 { font-size: 1.3rem; margin: 0 0 .25rem; }
-        .intro { color: var(--muted); margin: 0 0 1rem; }
-        label { display: block; margin-top: 1rem; font-weight: 600; font-size: .92rem; }
-        input { width: 100%; padding: .6rem .7rem; margin-top: .3rem; border: 1px solid var(--border); border-radius: 8px; background: var(--field); color: var(--text); font: inherit; }
-        input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-        .hint { color: var(--muted); font-size: .82rem; margin: .3rem 0 0; }
-        .actions { margin-top: 1.5rem; display: flex; gap: .75rem; align-items: center; }
-        .button, button.primary { display: inline-block; margin: 0; padding: .65rem 1.3rem; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
-        .button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
-        .errors { margin: 0 0 1rem; padding: .75rem 1rem; border-radius: 8px; background: var(--danger-bg); color: var(--danger); }
-        .errors ul { margin: 0; padding-left: 1.1rem; }
-        .checks { list-style: none; margin: 1rem 0 0; padding: 0; }
-        .checks li { display: flex; gap: .6rem; padding: .6rem 0; border-top: 1px solid var(--border); }
-        .checks li:first-child { border-top: 0; }
-        .badge { flex: none; width: 1.4rem; height: 1.4rem; border-radius: 50%; text-align: center; font-size: .85rem; line-height: 1.4rem; font-weight: 700; }
-        .badge.ok { background: var(--ok-bg); color: var(--ok); }
-        .badge.fail { background: var(--danger-bg); color: var(--danger); }
-        .check-title { font-weight: 600; }
-        .check-detail { color: var(--muted); font-size: .88rem; }
-        .notice { margin-top: 1rem; padding: .7rem 1rem; border-radius: 8px; background: var(--ok-bg); color: var(--ok); }
-        @media (max-width: 480px) { .shell { padding-top: 1rem; } .card { padding: 1.1rem; } .steps { font-size: .7rem; } }
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; -webkit-font-smoothing: antialiased; }
+        .guest { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 22px; }
+        .brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; text-align: center; color: var(--text-primary); }
+        .toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+        .pill { display: inline-flex; margin: 0; padding: 2px; gap: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); }
+        .pill button { border: 0; border-radius: var(--radius-pill); padding: 4px 10px; background: transparent; color: var(--text-secondary); font: 600 12px var(--font-body); cursor: pointer; }
+        .pill button[aria-current="true"] { background: var(--brand-solid); color: #fff; cursor: default; }
+        .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary); cursor: pointer; }
+        .icon-button:hover { background: var(--gray-3); }
+        .icon-button .moon { display: none; }
+        [data-theme='dark'] .icon-button .sun { display: none; }
+        [data-theme='dark'] .icon-button .moon { display: block; }
+        .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); box-shadow: var(--shadow-sm); padding: 28px; display: flex; flex-direction: column; gap: 24px; }
+        .steps { display: flex; align-items: center; list-style: none; margin: 0; padding: 0; }
+        .steps li { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-tertiary); white-space: nowrap; }
+        .steps li + li { flex: 1; }
+        .steps li + li::before { content: ''; flex: 1; min-width: 12px; height: 1px; margin: 0 10px; background: var(--border-default); }
+        .steps li.done + li::before { background: var(--success-solid); }
+        .steps .dot { flex: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: var(--gray-4); color: var(--text-tertiary); }
+        .steps li span:not(.dot) { display: none; }
+        .steps li.current { color: var(--text-primary); font-weight: 600; }
+        .steps li.current span:not(.dot) { display: inline; }
+        .steps li.current .dot { background: var(--brand-solid); color: #fff; }
+        .steps li.done .dot { background: var(--success-solid); color: #fff; }
+        .page { display: flex; flex-direction: column; gap: 16px; }
+        h1 { margin: 0; font-size: 16px; font-weight: 600; color: var(--text-primary); }
+        .intro { margin: 0; font-size: 14px; color: var(--text-secondary); }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--border-default); border-radius: var(--radius-control); background: var(--bg-surface); color: var(--text-primary); font: 14px var(--font-body); transition: box-shadow var(--duration-fast) var(--ease-out); }
+        input:focus { outline: none; border-color: var(--brand-solid); box-shadow: var(--shadow-focus); }
+        .hint { margin: 0; font-size: 12px; color: var(--text-tertiary); }
+        .actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 6px; }
+        .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 16px; margin: 0; border: 1px solid transparent; border-radius: var(--radius-control); background: var(--brand-solid); color: #fff; font: 600 14px var(--font-body); text-decoration: none; cursor: pointer; white-space: nowrap; transition: background var(--duration-fast) var(--ease-out); }
+        .button:hover { background: var(--brand-solid-hover); }
+        .button:active { background: var(--brand-solid-active); }
+        .button.outline { background: transparent; color: var(--text-primary); border-color: var(--border-default); }
+        .button.outline:hover { background: var(--gray-3); }
+        .alert { display: flex; gap: 12px; padding: 12px 14px; border-radius: var(--radius-lg); font-size: 13px; }
+        .alert ul { margin: 0; padding-left: 18px; }
+        .alert.danger { background: var(--danger-subtle-bg); color: var(--danger-text); }
+        .alert.success { background: var(--success-subtle-bg); color: var(--success-text); }
+        .checks { list-style: none; margin: 0; padding: 0; }
+        .checks li { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border-subtle); }
+        .checks li:first-child { border-top: 0; padding-top: 0; }
+        .badge { flex: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+        .badge.ok { background: var(--success-subtle-bg); color: var(--success-text); }
+        .badge.fail { background: var(--danger-subtle-bg); color: var(--danger-text); }
+        .check-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .check-detail { font-size: 13px; color: var(--text-secondary); }
+        @media (max-width: 480px) {
+            .card { padding: 20px; }
+            .steps li + li::before { margin: 0 6px; }
+        }
     </style>
 </head>
 <body>
     @php($stepKeys = ['environment', 'database', 'administrator', 'finalize'])
     @php($current = (int) trim($__env->yieldContent('step', '0')))
-    <div class="shell">
-        <div class="top">
-            <span class="brand">Litecommerce</span>
-            <form class="lang" method="POST" action="{{ route('install.locale') }}" aria-label="{{ __('installer::messages.language') }}">
+    <div class="guest">
+        <div class="brand">Litecommerce</div>
+
+        <div class="toolbar">
+            <button type="button" class="icon-button" onclick="window.lcToggleTheme && window.lcToggleTheme()" aria-label="{{ __('installer::messages.theme') }}">
+                <svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                <svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+            </button>
+            <form class="pill" method="POST" action="{{ route('install.locale') }}" aria-label="{{ __('installer::messages.language') }}">
                 @csrf
                 @foreach ((array) config('app.supported_ui_locales') as $code)
                     <button type="submit" name="locale" value="{{ $code }}" @if (app()->getLocale() === $code) aria-current="true" @endif>{{ strtoupper($code) }}</button>
@@ -69,29 +104,34 @@
             </form>
         </div>
 
-        <ol class="steps">
-            @foreach ($stepKeys as $index => $key)
-                <li class="{{ $index < $current ? 'done' : ($index === $current ? 'current' : '') }}">{{ __('installer::messages.steps.'.$key) }}</li>
-            @endforeach
-        </ol>
-
         <main class="card">
-            <h1>@yield('title', 'Litecommerce')</h1>
-            @hasSection('intro')
-                <p class="intro">@yield('intro')</p>
-            @endif
+            <ol class="steps">
+                @foreach ($stepKeys as $index => $key)
+                    <li class="{{ $index < $current ? 'done' : ($index === $current ? 'current' : '') }}">
+                        <span class="dot">{{ $index < $current ? '✓' : $index + 1 }}</span>
+                        <span>{{ __('installer::messages.steps.'.$key) }}</span>
+                    </li>
+                @endforeach
+            </ol>
 
-            @if ($errors->any())
-                <div class="errors" role="alert">
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+            <div class="page">
+                <h1>@yield('title', 'Litecommerce')</h1>
+                @hasSection('intro')
+                    <p class="intro">@yield('intro')</p>
+                @endif
 
-            @yield('content')
+                @if ($errors->any())
+                    <div class="alert danger" role="alert">
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @yield('content')
+            </div>
         </main>
     </div>
 </body>

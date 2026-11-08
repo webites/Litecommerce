@@ -69,6 +69,6 @@ final class PaymentSettingsController extends Controller
             'instructions' => $data['instructions'] ?? [], 'enabled' => $data['enabled'],
         ]);
 
-        return back()->with('status', 'Ustawienia przelewu zostały zapisane.');
+        return back()->with('status', trans('payments::flash.transfer_settings_saved'));
     }
 }

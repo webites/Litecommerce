@@ -5,26 +5,36 @@
 @section('step', '1')
 
 @section('content')
-    <form method="POST" action="{{ route('install.database.store') }}">
+    <form class="page" method="POST" action="{{ route('install.database.store') }}">
         @csrf
 
-        <label for="host">{{ __('installer::messages.database.host') }}</label>
-        <input type="text" id="host" name="host" value="{{ old('host', 'localhost') }}" required>
+        <div class="field">
+            <label for="host">{{ __('installer::messages.database.host') }}</label>
+            <input type="text" id="host" name="host" value="{{ old('host', 'localhost') }}" required>
+        </div>
 
-        <label for="port">{{ __('installer::messages.database.port') }}</label>
-        <input type="text" id="port" name="port" value="{{ old('port', '3306') }}" required>
+        <div class="field">
+            <label for="port">{{ __('installer::messages.database.port') }}</label>
+            <input type="text" id="port" name="port" value="{{ old('port', '3306') }}" required>
+        </div>
 
-        <label for="database">{{ __('installer::messages.database.database') }}</label>
-        <input type="text" id="database" name="database" value="{{ old('database') }}" required>
+        <div class="field">
+            <label for="database">{{ __('installer::messages.database.database') }}</label>
+            <input type="text" id="database" name="database" value="{{ old('database') }}" required>
+        </div>
 
-        <label for="username">{{ __('installer::messages.database.username') }}</label>
-        <input type="text" id="username" name="username" value="{{ old('username') }}" autocomplete="off" required>
+        <div class="field">
+            <label for="username">{{ __('installer::messages.database.username') }}</label>
+            <input type="text" id="username" name="username" value="{{ old('username') }}" autocomplete="off" required>
+        </div>
 
-        <label for="password">{{ __('installer::messages.database.password') }}</label>
-        <input type="password" id="password" name="password" autocomplete="new-password">
+        <div class="field">
+            <label for="password">{{ __('installer::messages.database.password') }}</label>
+            <input type="password" id="password" name="password" autocomplete="new-password">
+        </div>
 
         <div class="actions">
-            <button type="submit" class="primary">{{ __('installer::messages.continue') }}</button>
+            <button type="submit" class="button">{{ __('installer::messages.continue') }}</button>
         </div>
     </form>
 @endsection

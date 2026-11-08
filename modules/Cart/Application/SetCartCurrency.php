@@ -18,7 +18,7 @@ final class SetCartCurrency
     public function execute(int $cartId, string $currencyCode): void
     {
         if ($this->currencies->find($currencyCode) === null) {
-            throw new CartValidationException('unknown_currency', 'Nieznana waluta.');
+            throw new CartValidationException('unknown_currency', 'The currency is unknown.');
         }
 
         DB::transaction(function () use ($cartId, $currencyCode): void {

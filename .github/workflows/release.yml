@@ -54,5 +54,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/litecommerce-*.zip release/litecommerce-*.zip.sha256 \
+          gh release create "$GITHUB_REF_NAME" release/litecommerce-*.zip release/litecommerce-*.zip.sha256 release/manifest.json release/manifest.json.sig \
             --title "Litecommerce ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag

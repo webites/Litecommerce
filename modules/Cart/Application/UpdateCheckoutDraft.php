@@ -33,7 +33,7 @@ final class UpdateCheckoutDraft
             $draft = CheckoutDraft::query()->whereIn('cart_id', $ownedCartIds)->lockForUpdate()->findOrFail($draftId);
 
             if ($draft->status !== 'open') {
-                throw new CartValidationException('draft_confirmed', 'Ten checkout został już potwierdzony i nie można go już zmienić.');
+                throw new CartValidationException('draft_confirmed', 'The checkout has already been confirmed and cannot be changed.');
             }
 
             // An account customer's email is theirs, not a free-text field

@@ -27,7 +27,7 @@ use Litecommerce\Modules\Catalog\Contracts\CatalogSeoSettingsRepository;
 use Litecommerce\Modules\Catalog\Contracts\Events\CatalogContentChanged;
 use Litecommerce\Modules\Catalog\Contracts\ProductRelationType;
 use Litecommerce\Modules\Catalog\Contracts\ProductStatus;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\ProductUnit;
 use Litecommerce\Modules\Catalog\Contracts\VariantSeoMode;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\AttributeDefinition;
@@ -65,6 +65,8 @@ use Litecommerce\Modules\Warehouse\Contracts\StockLevelCatalog;
 
 final class ProductController extends Controller
 {
+    public function __construct(private readonly ProductTypeRegistry $productTypes) {}
+
     public function index(LanguageRepository $languages): Response
     {
         $locale = $this->defaultLocale($languages);
@@ -83,7 +85,7 @@ final class ProductController extends Controller
 
                     return [
                         'id' => (int) $product->getKey(),
-                        'name' => $translation === null ? 'Brak tłumaczenia' : $translation->name,
+                        'name' => $translation === null ? trans('catalog::labels.no_translation') : $translation->name,
                         'type' => $product->type,
                         'status' => $product->status,
                         'sku' => $variant?->sku,
@@ -209,10 +211,10 @@ final class ProductController extends Controller
                         'width_mm' => $variant->width_mm ?? '',
                         'height_mm' => $variant->height_mm ?? '',
                         'price' => $this->variantPriceData((int) $variant->getKey(), $variantPrices, $quoter, $baseCurrencyCode),
-                        'stock' => $product->type === ProductType::Physical->value
+                        'stock' => $this->productTypes->get($product->type)->tracksStock
                             ? $this->variantStockData((int) $variant->getKey(), $stockLevels)
                             : null,
-                        'digital_files' => $product->type === ProductType::Digital->value
+                        'digital_files' => $this->productTypes->get($product->type)->grantsDigitalAccess
                             ? array_map(fn (DigitalFileData $file): array => $this->digitalFileData($file), $digitalFiles->listForVariant((int) $variant->getKey()))
                             : null,
                     ];
@@ -289,7 +291,7 @@ final class ProductController extends Controller
         $created = $generator->handle($product, $selectedValues);
         $this->audit($request, $audit, 'catalog.variants.generated', $product, ['created_count' => $created]);
 
-        return back()->with('status', $created === 0 ? 'Wszystkie wybrane kombinacje już istnieją.' : "Utworzono warianty: {$created}.");
+        return back()->with('status', $created === 0 ? trans('catalog::flash.variants_exist') : trans('catalog::flash.variants_created', ['count' => $created]));
     }
 
     public function updateVariant(
@@ -325,7 +327,7 @@ final class ProductController extends Controller
             'after' => ['sku' => $variant->sku, 'gtin' => $variant->gtin, 'mpn' => $variant->mpn, 'enabled' => $variant->enabled],
         ]);
 
-        return back()->with('status', 'Wariant został zapisany.');
+        return back()->with('status', trans('catalog::flash.variant_saved'));
     }
 
     public function updateTax(
@@ -343,7 +345,7 @@ final class ProductController extends Controller
 
         $this->audit($request, $audit, 'catalog.product.tax_assigned', $product, ['tax_rate_id' => $taxRateId]);
 
-        return back()->with('status', 'Stawka VAT produktu została zapisana.');
+        return back()->with('status', trans('catalog::flash.product_vat_saved'));
     }
 
     public function updateVariantPrice(
@@ -380,7 +382,7 @@ final class ProductController extends Controller
             'promotional_amount' => $validated['promotional_amount'] ?? null,
         ]);
 
-        return back()->with('status', 'Cena wariantu została zapisana.');
+        return back()->with('status', trans('catalog::flash.variant_price_saved'));
     }
 
     public function updateVariantPriceOverride(
@@ -418,7 +420,7 @@ final class ProductController extends Controller
             'currency_code' => $currency->code,
         ]);
 
-        return back()->with('status', "Nadpisanie ceny w walucie {$currency->code} zostało zapisane.");
+        return back()->with('status', trans('catalog::flash.currency_price_saved', ['currency' => $currency->code]));
     }
 
     /** @return array{regular_amount:string,regular_mode:string,promotional_amount:?string,promotional_mode:?string,overrides:array<string,array{regular_amount:?string,regular_mode:?string,promotional_amount:?string,promotional_mode:?string}>,base_quote:?array{net:string,gross:string,promotional_active:bool}} */
@@ -524,7 +526,7 @@ final class ProductController extends Controller
             'attribute_definition_ids' => array_column($attributes, 'attribute_definition_id'),
         ]);
 
-        return back()->with('status', 'Atrybuty opisowe zostały zapisane.');
+        return back()->with('status', trans('catalog::flash.descriptive_attributes_saved'));
     }
 
     public function uploadImage(Request $request, Product $product, MediaLibrary $media, MediaAttachments $attachments, AuditLogger $audit): RedirectResponse
@@ -542,7 +544,7 @@ final class ProductController extends Controller
         $attachments->attach('product', (int) $product->getKey(), 'gallery', $uploaded->id);
         $this->audit($request, $audit, 'catalog.product.image_uploaded', $product, ['media_id' => $uploaded->id]);
 
-        return back()->with('status', 'Zdjęcie zostało dodane.');
+        return back()->with('status', trans('catalog::flash.image_added'));
     }
 
     public function removeImage(Request $request, Product $product, int $mediaId, MediaAttachments $attachments, AuditLogger $audit): RedirectResponse
@@ -550,7 +552,7 @@ final class ProductController extends Controller
         $attachments->detach('product', (int) $product->getKey(), 'gallery', $mediaId);
         $this->audit($request, $audit, 'catalog.product.image_removed', $product, ['media_id' => $mediaId]);
 
-        return back()->with('status', 'Zdjęcie zostało usunięte.');
+        return back()->with('status', trans('catalog::flash.image_removed'));
     }
 
     public function reorderImages(Request $request, Product $product, MediaAttachments $attachments, AuditLogger $audit): RedirectResponse
@@ -563,12 +565,12 @@ final class ProductController extends Controller
         $attachments->reorder('product', (int) $product->getKey(), 'gallery', array_map('intval', $validated['media_ids']));
         $this->audit($request, $audit, 'catalog.product.images_reordered', $product, []);
 
-        return back()->with('status', 'Kolejność zdjęć została zapisana.');
+        return back()->with('status', trans('catalog::flash.images_reordered'));
     }
 
     public function uploadDigitalFile(Request $request, Product $product, ProductVariant $variant, DigitalFileManager $manager, AuditLogger $audit): RedirectResponse
     {
-        abort_unless($variant->product_id === (int) $product->getKey() && $product->type === ProductType::Digital->value, 404);
+        abort_unless($variant->product_id === (int) $product->getKey() && $this->productTypes->get($product->type)->grantsDigitalAccess, 404);
         $validated = $request->validate([
             'label' => ['required', 'string', 'max:190'],
             'max_downloads' => ['nullable', 'integer', 'min:1'],
@@ -585,11 +587,11 @@ final class ProductController extends Controller
                 uploadedByStaffId: (string) $request->user()?->getAuthIdentifier(),
             );
         } catch (\RuntimeException) {
-            return back()->withErrors(['file' => 'Nie udało się zapisać pliku w magazynie plików. Spróbuj ponownie lub skontaktuj się z administratorem hostingu.']);
+            return back()->withErrors(['file' => trans('catalog::flash.file_storage_failed')]);
         }
         $this->audit($request, $audit, 'catalog.variant.digital_file_uploaded', $product, ['variant_id' => (int) $variant->getKey(), 'file_id' => $created->id]);
 
-        return back()->with('status', 'Plik cyfrowy został dodany.');
+        return back()->with('status', trans('catalog::flash.digital_file_added'));
     }
 
     public function uploadDigitalFileVersion(Request $request, Product $product, ProductVariant $variant, int $file, DigitalFileManager $manager, AuditLogger $audit): RedirectResponse
@@ -603,11 +605,11 @@ final class ProductController extends Controller
                 mimeType: (string) $uploaded->getMimeType(), uploadedByStaffId: (string) $request->user()?->getAuthIdentifier(),
             );
         } catch (\RuntimeException) {
-            return back()->withErrors(['file' => 'Nie udało się zapisać pliku w magazynie plików. Spróbuj ponownie lub skontaktuj się z administratorem hostingu.']);
+            return back()->withErrors(['file' => trans('catalog::flash.file_storage_failed')]);
         }
         $this->audit($request, $audit, 'catalog.variant.digital_file_version_uploaded', $product, ['variant_id' => (int) $variant->getKey(), 'file_id' => $updated->id]);
 
-        return back()->with('status', 'Nowa wersja pliku została wgrana.');
+        return back()->with('status', trans('catalog::flash.digital_file_version_uploaded'));
     }
 
     public function updateDigitalFile(Request $request, Product $product, ProductVariant $variant, int $file, DigitalFileManager $manager, AuditLogger $audit): RedirectResponse
@@ -627,7 +629,7 @@ final class ProductController extends Controller
         $manager->setActive($file, (bool) $validated['active']);
         $this->audit($request, $audit, 'catalog.variant.digital_file_updated', $product, ['variant_id' => (int) $variant->getKey(), 'file_id' => $file]);
 
-        return back()->with('status', 'Plik cyfrowy został zapisany.');
+        return back()->with('status', trans('catalog::flash.digital_file_saved'));
     }
 
     public function reorderDigitalFiles(Request $request, Product $product, ProductVariant $variant, DigitalFileManager $manager, AuditLogger $audit): RedirectResponse
@@ -638,7 +640,7 @@ final class ProductController extends Controller
         $manager->reorder((int) $variant->getKey(), array_map('intval', $validated['file_ids']));
         $this->audit($request, $audit, 'catalog.variant.digital_files_reordered', $product, ['variant_id' => (int) $variant->getKey()]);
 
-        return back()->with('status', 'Kolejność plików została zapisana.');
+        return back()->with('status', trans('catalog::flash.digital_files_reordered'));
     }
 
     public function searchRelationCandidates(Request $request, Product $product, LanguageRepository $languages): JsonResponse
@@ -667,7 +669,7 @@ final class ProductController extends Controller
 
                 return [
                     'id' => (int) $candidate->getKey(),
-                    'name' => $translation === null ? 'Brak tłumaczenia' : $translation->name,
+                    'name' => $translation === null ? trans('catalog::labels.no_translation') : $translation->name,
                     'sku' => $variant?->sku,
                     'status' => $candidate->status,
                 ];
@@ -691,7 +693,7 @@ final class ProductController extends Controller
         $setter->handle($product, $relations);
         $this->audit($request, $audit, 'catalog.product_relations.updated', $product, ['count' => count($relations)]);
 
-        return back()->with('status', 'Powiązane produkty zostały zapisane.');
+        return back()->with('status', trans('catalog::flash.related_products_saved'));
     }
 
     public function update(
@@ -708,7 +710,7 @@ final class ProductController extends Controller
             'after' => ['type' => $product->type, 'status' => $product->status],
         ]);
 
-        return back()->with('status', 'Produkt został zapisany.');
+        return back()->with('status', trans('catalog::flash.product_saved'));
     }
 
     public function destroy(Request $request, Product $product, AuditLogger $audit): RedirectResponse
@@ -725,7 +727,7 @@ final class ProductController extends Controller
         ]);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CatalogContentChanged));
 
-        return redirect()->route('panel.catalog.products.index')->with('status', 'Produkt został zarchiwizowany.');
+        return redirect()->route('panel.catalog.products.index')->with('status', trans('catalog::flash.product_archived'));
     }
 
     /** @return array<string, mixed> */
@@ -733,9 +735,9 @@ final class ProductController extends Controller
     {
         $defaultVariantSeoMode = $seoSettings->current()->defaultVariantSeoMode;
         $defaultVariantSeoModeLabel = match ($defaultVariantSeoMode) {
-            VariantSeoMode::IndexedSeparately->value => 'Indeksuj warianty osobno',
-            VariantSeoMode::Noindex->value => 'Nie indeksuj wariantów',
-            default => 'Canonical do produktu głównego',
+            VariantSeoMode::IndexedSeparately->value => trans('catalog::labels.seo_mode_indexed_separately'),
+            VariantSeoMode::Noindex->value => trans('catalog::labels.seo_mode_noindex'),
+            default => trans('catalog::labels.seo_mode_canonical'),
         };
 
         return [
@@ -744,14 +746,14 @@ final class ProductController extends Controller
                 'code' => $language->code,
                 'name' => $language->name,
             ], array_values(array_filter($languages->all(), static fn (LanguageData $language): bool => $language->isEnabled))),
-            'types' => $this->enumOptions(ProductType::cases()),
+            'types' => array_map(fn ($type): array => ['value' => $type->key, 'label' => trans($type->labelKey), 'tracks_stock' => $type->tracksStock, 'grants_digital_access' => $type->grantsDigitalAccess, 'sold_as_single_unit' => $type->soldAsSingleUnit], $this->productTypes->all()),
             'statuses' => $this->enumOptions(ProductStatus::cases()),
             // '' (not a real VariantSeoMode value) means "no override" — the
             // product inherits catalog_seo_settings.default_variant_seo_mode,
             // shown here so the merchant doesn't have to jump to /panel/seo to
             // know what "inherit" currently resolves to.
             'variantSeoModes' => [
-                ['value' => '', 'label' => "Domyślne z ustawień SEO (obecnie: {$defaultVariantSeoModeLabel})"],
+                ['value' => '', 'label' => trans('catalog::labels.seo_inherit', ['mode' => $defaultVariantSeoModeLabel])],
                 ...$this->enumOptions(VariantSeoMode::cases()),
             ],
             'units' => $this->enumOptions(ProductUnit::cases()),
@@ -806,7 +808,7 @@ final class ProductController extends Controller
             'status' => $product->status,
         ]);
 
-        return redirect()->route('panel.catalog.products.index')->with('status', 'Produkt został utworzony.');
+        return redirect()->route('panel.catalog.products.index')->with('status', trans('catalog::flash.product_created'));
     }
 
     private function productData(StoreProductRequest $request): CreateProductData
@@ -857,26 +859,14 @@ final class ProductController extends Controller
     }
 
     /**
-     * @param  list<ProductType|ProductStatus|ProductUnit|VariantSeoMode>  $cases
+     * @param  list<ProductStatus|ProductUnit|VariantSeoMode>  $cases
      * @return list<array{value:string,label:string}>
      */
     private function enumOptions(array $cases): array
     {
-        return array_map(static fn (ProductType|ProductStatus|ProductUnit|VariantSeoMode $case): array => [
+        return array_map(static fn (ProductStatus|ProductUnit|VariantSeoMode $case): array => [
             'value' => $case->value,
-            'label' => match ($case->value) {
-                'physical' => 'Fizyczny',
-                'digital' => 'Cyfrowy',
-                'draft' => 'Szkic',
-                'published' => 'Opublikowany',
-                'archived' => 'Zarchiwizowany',
-                'piece' => 'Sztuka',
-                'kilogram' => 'Kilogram',
-                'meter' => 'Metr',
-                'canonical_to_product' => 'Canonical do produktu głównego (domyślne)',
-                'indexed_separately' => 'Indeksuj warianty osobno',
-                'noindex' => 'Nie indeksuj wariantów',
-            },
+            'label' => trans('catalog::labels.option_'.$case->value),
         ], $cases);
     }
 }

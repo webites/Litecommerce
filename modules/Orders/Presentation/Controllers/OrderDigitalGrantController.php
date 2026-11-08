@@ -32,6 +32,6 @@ final class OrderDigitalGrantController extends Controller
             ));
         }
 
-        return back()->with('status', 'Dostęp cyfrowy został przyznany, klient dostał e-mail z linkami.');
+        return back()->with('status', trans('orders::flash.digital_access_granted'));
     }
 }

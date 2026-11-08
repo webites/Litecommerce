@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Warehouse\Application;
 
 use Illuminate\Support\Facades\DB;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
 use Litecommerce\Modules\Warehouse\Contracts\InsufficientStockException;
 use Litecommerce\Modules\Warehouse\Contracts\InvalidReservationStateException;
@@ -30,6 +30,7 @@ final class ManageStockReservations implements StockReservationManager
     public function __construct(
         private readonly VariantCatalog $variants,
         private readonly StockItemLocator $locator,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     public function reserve(
@@ -45,8 +46,8 @@ final class ManageStockReservations implements StockReservationManager
 
         $variant = $this->variants->find($variantId);
 
-        if ($variant === null || $variant->productType !== ProductType::Physical->value) {
-            throw new \InvalidArgumentException("Variant {$variantId} is not a tracked physical variant.");
+        if ($variant === null || ! $this->productTypes->get($variant->productType)->tracksStock) {
+            throw new \InvalidArgumentException("Variant {$variantId} does not track stock.");
         }
 
         return DB::transaction(function () use ($variantId, $quantity, $referenceType, $referenceId, $expiresAt): StockReservationData {

@@ -49,7 +49,7 @@ final class RedirectController extends Controller
         $redirect = $saver->handle(null, $this->data($request));
         $this->audit($request, $audit, 'redirects.created', $redirect);
 
-        return back()->with('status', 'Przekierowanie zostało dodane.');
+        return back()->with('status', trans('redirects::flash.added'));
     }
 
     public function update(SaveRedirectRequest $request, Redirect $redirect, SaveRedirect $saver, AuditLogger $audit): RedirectResponse
@@ -57,7 +57,7 @@ final class RedirectController extends Controller
         $saver->handle($redirect, $this->data($request));
         $this->audit($request, $audit, 'redirects.updated', $redirect);
 
-        return back()->with('status', 'Przekierowanie zostało zapisane.');
+        return back()->with('status', trans('redirects::flash.saved'));
     }
 
     public function destroy(Request $request, Redirect $redirect, AuditLogger $audit): RedirectResponse
@@ -65,7 +65,7 @@ final class RedirectController extends Controller
         $this->audit($request, $audit, 'redirects.deleted', $redirect);
         $redirect->delete();
 
-        return back()->with('status', 'Przekierowanie zostało usunięte.');
+        return back()->with('status', trans('redirects::flash.removed'));
     }
 
     private function data(SaveRedirectRequest $request): SaveRedirectData

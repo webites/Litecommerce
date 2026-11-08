@@ -54,7 +54,7 @@ final class PageController extends Controller
 
                     return [
                         'id' => (int) $page->getKey(),
-                        'title' => $translation === null ? 'Brak tłumaczenia' : $translation->title,
+                        'title' => $translation === null ? trans('cms::labels.no_translation') : $translation->title,
                         'slug' => $translation === null ? '' : $translation->slug,
                         'status' => $page->status,
                         'is_homepage' => $page->is_homepage,
@@ -112,7 +112,7 @@ final class PageController extends Controller
             ],
             'saveUrl' => route('panel.cms.pages.update', $page),
             'backUrl' => route('panel.cms.pages.index'),
-            'backLabel' => 'Wróć do listy stron',
+            'backLabel' => trans('cms::labels.back_to_pages'),
             // No context-specific tags on a plain page (no "current category/brand")
             // — only whatever's registered globally, e.g. by a future plugin/theme.
             'generalTags' => array_column($globalTags->all(), 'label', 'name'),
@@ -142,7 +142,7 @@ final class PageController extends Controller
         $this->audit($request, $audit, 'cms.page.created', $page, ['slug' => $validated['slug'], 'status' => $validated['status']]);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CmsContentChanged));
 
-        return redirect()->route('panel.cms.pages.edit', $page)->with('status', 'Strona została utworzona.');
+        return redirect()->route('panel.cms.pages.edit', $page)->with('status', trans('cms::flash.page_created'));
     }
 
     /**
@@ -178,7 +178,7 @@ final class PageController extends Controller
         $this->audit($request, $audit, 'cms.page.saved', $page, ['before' => $before, 'after' => ['status' => $page->status]]);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CmsContentChanged));
 
-        $response = back()->with('status', 'Strona została zapisana.');
+        $response = back()->with('status', trans('cms::flash.page_saved'));
 
         if ($wasPublished && $oldSlug !== null && $oldSlug !== $rootProps['slug']) {
             $response->with('redirectSuggestion', ['locale' => $locale, 'from_path' => "/{$oldSlug}", 'to_path' => '/'.$rootProps['slug']]);
@@ -194,7 +194,7 @@ final class PageController extends Controller
         $this->audit($request, $audit, 'cms.page.homepage_set', $page, []);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CmsContentChanged));
 
-        return back()->with('status', 'Strona ustawiona jako strona główna.');
+        return back()->with('status', trans('cms::flash.page_set_as_home'));
     }
 
     public function archive(Request $request, CmsPage $page, ArchivePage $archiver, AuditLogger $audit): RedirectResponse
@@ -204,7 +204,7 @@ final class PageController extends Controller
         $this->audit($request, $audit, 'cms.page.archived', $page, []);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CmsContentChanged));
 
-        return redirect()->route('panel.cms.pages.index')->with('status', 'Strona została zarchiwizowana.');
+        return redirect()->route('panel.cms.pages.index')->with('status', trans('cms::flash.page_archived'));
     }
 
     /** Offered to the merchant right after activating a theme (Themes\Presentation\Controllers\Panel\ThemeController::activate()'s flash prompt) — resets the homepage's content and every archetype override to the new theme's own defaults, see ResetStorefrontToThemeDefaults. */
@@ -215,7 +215,7 @@ final class PageController extends Controller
         $this->audit($request, $audit, 'cms.reset_to_theme_defaults', $page, []);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CmsContentChanged));
 
-        return back()->with('status', 'Strona główna i szablony archiwów zostały ustawione na domyślne treści motywu.');
+        return back()->with('status', trans('cms::flash.theme_defaults_restored'));
     }
 
     public function searchProducts(Request $request, ProductCatalog $products, LanguageRepository $languages): JsonResponse
@@ -251,7 +251,7 @@ final class PageController extends Controller
 
     private function pageNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.cms.pages.index')->with('error', 'Strona nie została znaleziona.');
+        return redirect()->route('panel.cms.pages.index')->with('error', trans('cms::flash.page_not_found'));
     }
 
     /** @return array<string, mixed> */

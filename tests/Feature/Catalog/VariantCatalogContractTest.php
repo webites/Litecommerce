@@ -85,7 +85,7 @@ final class VariantCatalogContractTest extends TestCase
         $this->assertNull(app(VariantCatalog::class)->find(999999));
     }
 
-    public function test_paginate_physical_lists_only_physical_variants_with_a_display_name(): void
+    public function test_paginate_stock_tracked_lists_only_physical_variants_with_a_display_name(): void
     {
         $staff = StaffAccount::factory()->create();
         $this->actingAs($staff)->post(route('panel.catalog.products.store'), $this->payload(['name' => 'Koszulka', 'sku' => 'SHIRT-1']))
@@ -93,7 +93,7 @@ final class VariantCatalogContractTest extends TestCase
         $this->actingAs($staff)->post(route('panel.catalog.products.store'), $this->payload(['name' => 'E-book', 'type' => 'digital', 'sku' => 'EBOOK-1', 'maximum_quantity' => '1']))
             ->assertSessionHasNoErrors();
 
-        $page = app(VariantCatalog::class)->paginatePhysical('pl', 25, 1);
+        $page = app(VariantCatalog::class)->paginateStockTracked('pl', 25, 1);
 
         $this->assertSame(1, $page['total']);
         $this->assertCount(1, $page['items']);
@@ -101,7 +101,7 @@ final class VariantCatalogContractTest extends TestCase
         $this->assertSame('SHIRT-1', $page['items'][0]->sku);
     }
 
-    public function test_paginate_physical_pages_through_results(): void
+    public function test_paginate_stock_tracked_pages_through_results(): void
     {
         $staff = StaffAccount::factory()->create();
         foreach (range(1, 3) as $i) {
@@ -109,11 +109,11 @@ final class VariantCatalogContractTest extends TestCase
                 ->assertSessionHasNoErrors();
         }
 
-        $page = app(VariantCatalog::class)->paginatePhysical('pl', 2, 1);
+        $page = app(VariantCatalog::class)->paginateStockTracked('pl', 2, 1);
         $this->assertSame(3, $page['total']);
         $this->assertCount(2, $page['items']);
 
-        $secondPage = app(VariantCatalog::class)->paginatePhysical('pl', 2, 2);
+        $secondPage = app(VariantCatalog::class)->paginateStockTracked('pl', 2, 2);
         $this->assertCount(1, $secondPage['items']);
     }
 

@@ -7,7 +7,7 @@ namespace Litecommerce\Modules\Cart\Application;
 use Litecommerce\Modules\Cart\Domain\Decimal;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CartItem;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CheckoutDraft;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Coupons\Contracts\CouponPricer;
 use Litecommerce\Modules\Delivery\Contracts\DeliveryMethodCatalog;
 use Litecommerce\Modules\Delivery\Contracts\DeliveryOptionQuote;
@@ -34,6 +34,8 @@ final class PriceCheckoutDraft
         private readonly DeliveryMethodCatalog $delivery,
         private readonly CouponPricer $coupons,
         private readonly CurrencyRepository $currencies,
+        private readonly ProductTypeRegistry $productTypes,
+        private readonly ApplyPricingAdjustments $adjustments,
     ) {}
 
     public function price(CheckoutDraft $draft, string $locale): PricedCart
@@ -41,10 +43,15 @@ final class PriceCheckoutDraft
         $items = CartItem::query()->where('cart_id', $draft->cart_id)->get();
         $priced = $this->priceLines->price($items, $draft->currency_code, $locale, $draft->cart_id);
 
+        return $this->adjustments->apply($this->withDelivery($draft, $priced, $locale), $draft->customer_account_id, $locale);
+    }
+
+    private function withDelivery(CheckoutDraft $draft, PricedCart $priced, string $locale): PricedCart
+    {
         $hasPhysical = false;
 
         foreach ($priced->lines as $line) {
-            if ($line->productType === ProductType::Physical->value) {
+            if ($this->productTypes->get($line->productType)->requiresDelivery) {
                 $hasPhysical = true;
 
                 break;
@@ -119,6 +126,10 @@ final class PriceCheckoutDraft
                 $priced->delivery->quote->methodId, $priced->delivery->selectedPickupPointId,
                 $priced->delivery->finalNetAmount, $priced->delivery->finalVatAmount, $priced->delivery->finalGrossAmount,
             ],
+            'adjustments' => array_map(
+                static fn (array $a): array => [$a['code'], $a['net_amount'], $a['vat_amount'], $a['gross_amount']],
+                $priced->adjustments,
+            ),
             'coupons' => array_map(
                 static fn ($o): array => [$o->code, $o->status->value, $o->allocatedAmount],
                 $priced->couponOutcomes,

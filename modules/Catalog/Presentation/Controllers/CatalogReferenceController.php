@@ -57,7 +57,7 @@ final class CatalogReferenceController extends Controller
 
                     return [
                         'id' => (int) $brand->getKey(),
-                        'name' => $translation === null ? 'Brak tłumaczenia' : $translation->name,
+                        'name' => $translation === null ? trans('catalog::labels.no_translation') : $translation->name,
                         'description_html' => $translation === null ? '' : ($translation->description_html ?? ''),
                         'logo_url' => $logo?->url,
                     ];
@@ -71,7 +71,7 @@ final class CatalogReferenceController extends Controller
                         'id' => (int) $category->getKey(),
                         'parent_id' => $category->parent_id,
                         'position' => $category->position,
-                        'name' => $translation === null ? 'Brak tłumaczenia' : $translation->name,
+                        'name' => $translation === null ? trans('catalog::labels.no_translation') : $translation->name,
                         'visible_in_tree' => $category->visible_in_tree,
                         'image_url' => $image?->url,
                     ];
@@ -79,12 +79,12 @@ final class CatalogReferenceController extends Controller
             'attributeTypes' => array_map(static fn (AttributeType $type): array => [
                 'value' => $type->value,
                 'label' => match ($type) {
-                    AttributeType::Text => 'Tekst',
-                    AttributeType::Number => 'Liczba',
-                    AttributeType::Boolean => 'Tak / nie',
-                    AttributeType::SingleSelect => 'Pojedynczy wybór',
-                    AttributeType::MultiSelect => 'Wielokrotny wybór',
-                    AttributeType::Color => 'Kolor',
+                    AttributeType::Text => trans('catalog::labels.attribute_type_text'),
+                    AttributeType::Number => trans('catalog::labels.attribute_type_number'),
+                    AttributeType::Boolean => trans('catalog::labels.attribute_type_boolean'),
+                    AttributeType::SingleSelect => trans('catalog::labels.attribute_type_single_select'),
+                    AttributeType::MultiSelect => trans('catalog::labels.attribute_type_multi_select'),
+                    AttributeType::Color => trans('catalog::labels.attribute_type_color'),
                 },
             ], AttributeType::cases()),
             'attributes' => AttributeDefinition::query()
@@ -140,7 +140,7 @@ final class CatalogReferenceController extends Controller
         $this->audit($request, $audit, 'catalog.brand.created', 'brand', (string) $brand->getKey());
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CatalogContentChanged));
 
-        return back()->with('status', 'Marka została utworzona.');
+        return back()->with('status', trans('catalog::flash.brand_created'));
     }
 
     public function updateBrand(Request $request, Brand $brand, AuditLogger $audit, SlugGenerator $slugGenerator, HtmlContentFilter $htmlFilter): RedirectResponse
@@ -172,7 +172,7 @@ final class CatalogReferenceController extends Controller
         $this->audit($request, $audit, 'catalog.brand.updated', 'brand', (string) $brand->getKey());
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CatalogContentChanged));
 
-        return back()->with('status', 'Marka została zapisana.');
+        return back()->with('status', trans('catalog::flash.brand_saved'));
     }
 
     public function uploadBrandLogo(Request $request, Brand $brand, MediaLibrary $media, AuditLogger $audit): RedirectResponse
@@ -190,7 +190,7 @@ final class CatalogReferenceController extends Controller
         $brand->update(['logo_media_id' => $uploaded->id]);
         $this->audit($request, $audit, 'catalog.brand.logo_uploaded', 'brand', (string) $brand->getKey());
 
-        return back()->with('status', 'Logo marki zostało zapisane.');
+        return back()->with('status', trans('catalog::flash.brand_logo_saved'));
     }
 
     public function removeBrandLogo(Request $request, Brand $brand, AuditLogger $audit): RedirectResponse
@@ -198,7 +198,7 @@ final class CatalogReferenceController extends Controller
         $brand->update(['logo_media_id' => null]);
         $this->audit($request, $audit, 'catalog.brand.logo_removed', 'brand', (string) $brand->getKey());
 
-        return back()->with('status', 'Logo marki zostało usunięte.');
+        return back()->with('status', trans('catalog::flash.brand_logo_removed'));
     }
 
     public function storeCategory(Request $request, AuditLogger $audit, SlugGenerator $slugGenerator): RedirectResponse
@@ -229,7 +229,7 @@ final class CatalogReferenceController extends Controller
         $this->audit($request, $audit, 'catalog.category.created', 'category', (string) $category->getKey());
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CatalogContentChanged));
 
-        return back()->with('status', 'Kategoria została utworzona.');
+        return back()->with('status', trans('catalog::flash.category_created'));
     }
 
     public function updateCategory(Request $request, Category $category, AuditLogger $audit, SlugGenerator $slugGenerator): RedirectResponse
@@ -244,7 +244,7 @@ final class CatalogReferenceController extends Controller
         ]);
 
         if ($this->parentWouldCreateCycle($category, $data['parent_id'] ?? null)) {
-            throw ValidationException::withMessages(['parent_id' => 'Kategoria nie może stać się potomkiem samej siebie.']);
+            throw ValidationException::withMessages(['parent_id' => trans('catalog::validation.category_self_parent')]);
         }
 
         DB::transaction(function () use ($category, $data, $slugGenerator): void {
@@ -263,7 +263,7 @@ final class CatalogReferenceController extends Controller
         $this->audit($request, $audit, 'catalog.category.updated', 'category', (string) $category->getKey());
         DB::afterCommit(fn () => CommittedEvent::dispatch(new CatalogContentChanged));
 
-        return back()->with('status', 'Kategoria została zapisana.');
+        return back()->with('status', trans('catalog::flash.category_saved'));
     }
 
     public function uploadCategoryImage(Request $request, Category $category, MediaLibrary $media, AuditLogger $audit): RedirectResponse
@@ -281,7 +281,7 @@ final class CatalogReferenceController extends Controller
         $category->update(['image_media_id' => $uploaded->id]);
         $this->audit($request, $audit, 'catalog.category.image_uploaded', 'category', (string) $category->getKey());
 
-        return back()->with('status', 'Zdjęcie kategorii zostało zapisane.');
+        return back()->with('status', trans('catalog::flash.category_image_saved'));
     }
 
     public function removeCategoryImage(Request $request, Category $category, AuditLogger $audit): RedirectResponse
@@ -289,7 +289,7 @@ final class CatalogReferenceController extends Controller
         $category->update(['image_media_id' => null]);
         $this->audit($request, $audit, 'catalog.category.image_removed', 'category', (string) $category->getKey());
 
-        return back()->with('status', 'Zdjęcie kategorii zostało usunięte.');
+        return back()->with('status', trans('catalog::flash.category_image_removed'));
     }
 
     private function parentWouldCreateCycle(Category $category, ?int $newParentId): bool
@@ -341,7 +341,7 @@ final class CatalogReferenceController extends Controller
         });
         $this->audit($request, $audit, 'catalog.attribute.created', 'attribute_definition', (string) $definition->getKey());
 
-        return back()->with('status', 'Atrybut został utworzony.');
+        return back()->with('status', trans('catalog::flash.attribute_created'));
     }
 
     public function storeAttributeValue(
@@ -383,7 +383,7 @@ final class CatalogReferenceController extends Controller
         });
         $this->audit($request, $audit, 'catalog.attribute_value.created', 'attribute_value', (string) $value->getKey());
 
-        return back()->with('status', 'Wartość atrybutu została utworzona.');
+        return back()->with('status', trans('catalog::flash.attribute_value_created'));
     }
 
     private function audit(Request $request, AuditLogger $audit, string $action, string $subjectType, string $subjectId): void

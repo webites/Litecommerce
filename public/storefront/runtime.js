@@ -26,7 +26,8 @@
  *       On failure: shows the API's message and, for each field named in
  *       a Laravel-shaped { errors: { field: [...] } } response, fills a
  *       matching [data-storefront-error-for="field"] element if the theme
- *       provided one.
+ *       provided one. Submit buttons stay disabled while the request runs
+ *       and are enabled again after a failure, so the form can be retried.
  *
  *   <button data-storefront-action="post|put|delete"
  *           data-storefront-url="/cart/items/{variant_id}"
@@ -219,15 +220,69 @@
         return match ? decodeURIComponent(match[1]) : null;
     }
 
+    /* ---------------------------------------------------------------
+     * Failure messages owned by the runtime itself: only the cases the
+     * server cannot localize (no response, or a non-JSON error page).
+     * A JSON error body from the API carries its own localized message.
+     * --------------------------------------------------------------- */
+
+    const RUNTIME_MESSAGES = {
+        en: {
+            saved: 'Saved.',
+            generic: 'Something went wrong. Please try again.',
+            network: 'No connection to the server. Check your internet connection and try again.',
+            session_expired: 'Your session has expired. Refresh the page and try again.',
+            too_many: 'Too many attempts. Wait a moment and try again.',
+            server: 'The server could not complete the request. Please try again in a moment.',
+        },
+        pl: {
+            saved: 'Zapisano.',
+            generic: 'Coś poszło nie tak. Spróbuj ponownie.',
+            network: 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',
+            session_expired: 'Sesja wygasła. Odśwież stronę i spróbuj ponownie.',
+            too_many: 'Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.',
+            server: 'Serwer nie mógł zrealizować żądania. Spróbuj ponownie za chwilę.',
+        },
+    };
+
+    function runtimeMessage(key) {
+        const language = (document.documentElement.lang || '').toLowerCase().split('-')[0];
+
+        return (RUNTIME_MESSAGES[language] || RUNTIME_MESSAGES.en)[key];
+    }
+
+    function failureMessage(result) {
+        if (result.body && typeof result.body.message === 'string' && result.body.message !== '' && result.status < 500) {
+            return result.body.message;
+        }
+        if (result.status === 0) {
+            return runtimeMessage('network');
+        }
+        if (result.status === 419) {
+            return runtimeMessage('session_expired');
+        }
+        if (result.status === 429) {
+            return runtimeMessage('too_many');
+        }
+
+        return result.status >= 500 ? runtimeMessage('server') : runtimeMessage('generic');
+    }
+
     async function fetchJson(url, options) {
         options = options || {};
         const headers = Object.assign({ Accept: 'application/json', 'Content-Type': 'application/json' }, options.headers || {});
+        headers['X-Storefront-Locale'] = document.documentElement.lang || '';
         const xsrf = readCookie('XSRF-TOKEN');
         if (xsrf) {
             headers['X-XSRF-TOKEN'] = xsrf;
         }
 
-        const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers }));
+        let response;
+        try {
+            response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers }));
+        } catch (error) {
+            return { ok: false, status: 0, body: null };
+        }
         let body = null;
         try {
             body = await response.json();
@@ -383,6 +438,13 @@
      * data-storefront="ajax" forms
      * --------------------------------------------------------------- */
 
+    function setBusy(element, busy) {
+        element.toggleAttribute('aria-busy', busy);
+        element.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
+            button.disabled = busy;
+        });
+    }
+
     function bindAjaxForms() {
         document.addEventListener('submit', async function (event) {
             const form = event.target.closest('[data-storefront="ajax"]');
@@ -390,6 +452,9 @@
                 return;
             }
             event.preventDefault();
+            if (form.hasAttribute('aria-busy')) {
+                return;
+            }
 
             // Read the raw attributes, not the .action/.method IDL
             // properties — those resolve to a normalized absolute URL
@@ -397,17 +462,22 @@
             // and a GET/POST-only method respectively.
             const method = (form.dataset.storefrontMethod || form.getAttribute('method') || 'post').toUpperCase();
             const url = resolveTokens(form.getAttribute('action') || form.dataset.storefrontUrl, form);
+            setBusy(form, true);
             const result = await fetchJson(url, { method: method, body: JSON.stringify(serializeForm(form)) });
+            const redirecting = result.ok && Boolean(form.dataset.storefrontRedirect);
+            if (!redirecting) {
+                setBusy(form, false);
+            }
 
             if (result.ok) {
                 showFieldErrors(form, null);
-                showMessage(form, 'success', form.dataset.storefrontSuccessMessage || 'Zapisano.');
+                showMessage(form, 'success', form.dataset.storefrontSuccessMessage || runtimeMessage('saved'));
                 broadcastRefresh();
                 document.dispatchEvent(new CustomEvent('storefront:success', { detail: result.body }));
                 applyRedirect(form.dataset.storefrontRedirect, form, result.body);
             } else {
                 showFieldErrors(form, result.body && result.body.errors);
-                showMessage(form, 'error', (result.body && result.body.message) || 'Nie udalo sie zapisac danych.');
+                showMessage(form, 'error', failureMessage(result));
                 if (form.dataset.storefrontRefreshOnError !== undefined) {
                     broadcastRefresh();
                 }
@@ -441,7 +511,7 @@
             document.dispatchEvent(new CustomEvent('storefront:success', { detail: result.body }));
             applyRedirect(trigger.dataset.storefrontRedirect, trigger, result.body);
         } else {
-            showMessage(trigger.closest('[data-storefront-message], body'), 'error', (result.body && result.body.message) || 'Operacja nie powiodla sie.');
+            showMessage(trigger.closest('[data-storefront-message], body'), 'error', failureMessage(result));
             if (trigger.dataset.storefrontRefreshOnError !== undefined) {
                 broadcastRefresh();
             }
@@ -932,7 +1002,7 @@
             const url = resolveTokens(el.dataset.storefrontUrl, el);
             const result = await fetchJson(url, { method: method });
             if (!result.ok) {
-                showMessage(el, 'error', (result.body && result.body.message) || 'Nie udalo sie przygotowac strony.');
+                showMessage(el, 'error', failureMessage(result));
                 continue;
             }
             (el.dataset.storefrontExpose || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (pair) {

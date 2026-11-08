@@ -55,6 +55,13 @@
                     <td class="mono">{{ $trim($order->deliveryGrossAmount) }}</td>
                 </tr>
             @endif
+            @foreach ($order->adjustmentTotals() as $adjustment)
+                <tr>
+                    <td><div class="li-name">{{ $adjustment['label'] }}</div></td>
+                    <td class="mono">1</td>
+                    <td class="mono">{{ $trim($adjustment['gross_amount']) }}</td>
+                </tr>
+            @endforeach
         </tbody>
     </table>
     <div class="card-pad" style="padding-top: 14px;">

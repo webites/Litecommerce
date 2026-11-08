@@ -2,6 +2,7 @@
 
 return [
     'connection_failed' => 'Nie udało się połączyć z bazą danych. Sprawdź dane dostępowe.',
+    'theme' => 'Przełącz motyw',
     'language' => 'Język',
     'back_to_start' => 'Zacznij od początku',
     'continue' => 'Dalej',

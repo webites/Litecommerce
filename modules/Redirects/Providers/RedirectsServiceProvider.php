@@ -21,6 +21,8 @@ final class RedirectsServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'redirects');
+
         $this->app->make(SettingsTabRegistry::class)->register(
             'redirects',
             'store::tabs.redirects',

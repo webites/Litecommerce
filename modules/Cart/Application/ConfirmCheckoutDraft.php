@@ -7,7 +7,7 @@ namespace Litecommerce\Modules\Cart\Application;
 use Illuminate\Support\Facades\DB;
 use Litecommerce\Modules\Cart\Infrastructure\Models\Cart;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CheckoutDraft;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Consents\Contracts\ConsentSource;
 use Litecommerce\Modules\Consents\Contracts\MarketingConsentRegistry;
 use Litecommerce\Modules\Delivery\Contracts\DeliveryPickupPointData;
@@ -36,6 +36,7 @@ final class ConfirmCheckoutDraft
         private readonly OrderPlacer $orders,
         private readonly PaymentMethodRegistry $paymentMethods,
         private readonly MarketingConsentRegistry $consents,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     /** @param list<int> $ownedCartIds */
@@ -94,7 +95,7 @@ final class ConfirmCheckoutDraft
             $cart = Cart::query()->lockForUpdate()->findOrFail($cartId);
 
             if ($cart->status === 'checked_out') {
-                throw new CartValidationException('cart_checked_out', 'Ten koszyk został już zatwierdzony przez inny checkout.');
+                throw new CartValidationException('cart_checked_out', 'The cart has already been checked out.');
             }
 
             $priced = $this->pricer->price($draft, $locale);
@@ -108,22 +109,22 @@ final class ConfirmCheckoutDraft
             }
 
             if (! $priced->allAvailable) {
-                throw new CartValidationException('items_unavailable', 'Część pozycji w koszyku jest niedostępna. Popraw koszyk przed potwierdzeniem.');
+                throw new CartValidationException('items_unavailable', 'Some cart items are unavailable.');
             }
 
             try {
                 $paymentMethod = $this->paymentMethods->get($paymentMethodId);
             } catch (\InvalidArgumentException) {
-                throw new CartValidationException('payment_method_unavailable', 'Wybrana metoda płatności jest niedostępna.');
+                throw new CartValidationException('payment_method_unavailable', 'The selected payment method is unavailable.');
             }
-            $containsDigital = collect($priced->lines)->contains(fn (PricedLine $line): bool => $line->productType === ProductType::Digital->value);
-            $containsPhysical = collect($priced->lines)->contains(fn (PricedLine $line): bool => $line->productType === ProductType::Physical->value);
+            $containsDigital = collect($priced->lines)->contains(fn (PricedLine $line): bool => $this->productTypes->get($line->productType)->grantsDigitalAccess);
+            $containsPhysical = collect($priced->lines)->contains(fn (PricedLine $line): bool => $this->productTypes->get($line->productType)->requiresDelivery);
             if (! $paymentMethod->available(new PaymentAvailabilityContext(
                 $draft->id, $priced->grandTotalGrossAmount(), $priced->currencyCode,
                 $containsPhysical, $containsDigital, $draft->customer_account_id,
                 $priced->delivery?->selectedMethodId,
             ))) {
-                throw new CartValidationException('payment_method_unavailable', 'Wybrana metoda płatności jest niedostępna.');
+                throw new CartValidationException('payment_method_unavailable', 'The selected payment method is unavailable.');
             }
 
             $draft->update([
@@ -162,7 +163,7 @@ final class ConfirmCheckoutDraft
                     sku: $line->sku, displayName: $line->displayName, quantity: $line->quantity,
                     unitAmount: (string) $line->unitAmount, lineNetAmount: (string) $line->lineNetAmount,
                     lineVatAmount: (string) $line->lineVatAmount, lineGrossAmount: (string) $line->lineGrossAmount,
-                    couponAllocations: $line->couponAllocations,
+                    couponAllocations: $line->couponAllocations, adjustmentAllocations: $line->adjustmentAllocations,
                 ), $priced->lines),
                 deliveryMethodId: $priced->delivery?->quote?->methodId,
                 deliveryKind: $priced->delivery?->quote?->kind,
@@ -198,21 +199,21 @@ final class ConfirmCheckoutDraft
     private function assertReady(CheckoutDraft $draft, PricedCart $priced): void
     {
         if ($draft->email === null || $draft->email === '') {
-            throw new CartValidationException('email_required', 'Adres e-mail jest wymagany.');
+            throw new CartValidationException('email_required', 'An e-mail address is required.');
         }
 
         if ($draft->buyer_type === 'company' && ($draft->company_name === null || $draft->company_name === '')) {
-            throw new CartValidationException('company_name_required', 'Nazwa firmy jest wymagana dla zakupu firmowego.');
+            throw new CartValidationException('company_name_required', 'A company name is required for a business purchase.');
         }
 
         if (! $this->isCompleteAddress($draft->billing_address)) {
-            throw new CartValidationException('billing_address_required', 'Adres rozliczeniowy jest niekompletny.');
+            throw new CartValidationException('billing_address_required', 'The billing address is incomplete.');
         }
 
         $hasPhysicalLines = false;
 
         foreach ($priced->lines as $line) {
-            if ($line->productType === ProductType::Physical->value) {
+            if ($this->productTypes->get($line->productType)->requiresDelivery) {
                 $hasPhysicalLines = true;
 
                 break;
@@ -220,7 +221,7 @@ final class ConfirmCheckoutDraft
         }
 
         if ($draft->ships_to_different_address && $hasPhysicalLines && ! $this->isCompleteAddress($draft->shipping_address)) {
-            throw new CartValidationException('shipping_address_required', 'Adres dostawy jest niekompletny.');
+            throw new CartValidationException('shipping_address_required', 'The shipping address is incomplete.');
         }
 
         if ($priced->delivery === null) {
@@ -228,15 +229,15 @@ final class ConfirmCheckoutDraft
         }
 
         if ($draft->delivery_method_id === null) {
-            throw new CartValidationException('delivery_method_required', 'Wybierz metodę dostawy.');
+            throw new CartValidationException('delivery_method_required', 'A delivery method is required.');
         }
 
         if ($priced->delivery->quote === null) {
-            throw new CartValidationException('delivery_method_unavailable', 'Wybrana metoda dostawy jest już niedostępna. Wybierz inną.');
+            throw new CartValidationException('delivery_method_unavailable', 'The selected delivery method is no longer available.');
         }
 
         if ($priced->delivery->quote->kind === 'pickup' && $this->selectedPickupPoint($priced) === null) {
-            throw new CartValidationException('pickup_point_required', 'Wybierz punkt odbioru.');
+            throw new CartValidationException('pickup_point_required', 'A pickup point is required.');
         }
     }
 
@@ -296,7 +297,7 @@ final class ConfirmCheckoutDraft
             : ($this->blocks->isGuestEmailBlocked((string) $draft->email) ? PurchaseBlockStatus::blocked(null) : PurchaseBlockStatus::allowed());
 
         if ($status->blocked) {
-            throw new CartValidationException('purchase_blocked', $status->reason ?? 'Zakup jest obecnie niedostępny dla tego konta.');
+            throw new CartValidationException('purchase_blocked', $status->reason ?? 'Purchasing is currently unavailable for this account.', ['reason' => $status->reason]);
         }
     }
 

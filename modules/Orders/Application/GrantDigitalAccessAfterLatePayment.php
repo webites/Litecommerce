@@ -6,7 +6,7 @@ namespace Litecommerce\Modules\Orders\Application;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Digital\Contracts\DigitalAccessCatalog;
 use Litecommerce\Modules\Digital\Contracts\DigitalAccessGrantor;
 use Litecommerce\Modules\Digital\Contracts\DigitalGrantData;
@@ -22,13 +22,14 @@ final class GrantDigitalAccessAfterLatePayment implements OrderDigitalAccessGran
         private readonly DigitalAccessGrantor $grantor,
         private readonly DigitalAccessCatalog $catalog,
         private readonly OrderEmailComposer $emails,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
-    public static function isEligible(Order $order): bool
+    public function isEligible(Order $order): bool
     {
         return $order->payment_status === OrderPaymentStatus::LatePayment->value
             && $order->mode !== 'test'
-            && $order->lines->contains(static fn ($line): bool => $line->product_type === ProductType::Digital->value);
+            && $order->lines->contains(fn ($line): bool => $this->productTypes->get($line->product_type)->grantsDigitalAccess);
     }
 
     public function grantAfterLatePayment(string $orderId, string $actorId, string $reason): int
@@ -78,7 +79,7 @@ final class GrantDigitalAccessAfterLatePayment implements OrderDigitalAccessGran
             throw new Refused(Refused::TEST_ORDER, 'Zamówienia testowego nie obejmuje przyznawanie dostępu.');
         }
 
-        if (! self::isEligible($order)) {
+        if (! $this->isEligible($order)) {
             throw new Refused(Refused::NO_DIGITAL_LINES, 'Zamówienie nie zawiera produktów cyfrowych.');
         }
     }
@@ -89,7 +90,7 @@ final class GrantDigitalAccessAfterLatePayment implements OrderDigitalAccessGran
         $grants = [];
 
         foreach ($order->lines as $line) {
-            if ($line->product_type !== ProductType::Digital->value) {
+            if (! $this->productTypes->get($line->product_type)->grantsDigitalAccess) {
                 continue;
             }
 

@@ -48,13 +48,13 @@ final class SetProductRelationsRequest extends FormRequest
                 $targetId = (int) $relation['target_product_id'];
 
                 if ($sourceId !== null && $targetId === $sourceId) {
-                    $validator->errors()->add("relations.{$index}.target_product_id", 'Produkt nie może być powiązany sam ze sobą.');
+                    $validator->errors()->add("relations.{$index}.target_product_id", trans('catalog::validation.relation_self'));
                 }
 
                 $key = $relation['type'].'-'.$targetId;
 
                 if (isset($seen[$key])) {
-                    $validator->errors()->add("relations.{$index}.target_product_id", 'Ten produkt jest już dodany dla wybranego typu powiązania.');
+                    $validator->errors()->add("relations.{$index}.target_product_id", trans('catalog::validation.relation_duplicate'));
                 }
 
                 $seen[$key] = true;

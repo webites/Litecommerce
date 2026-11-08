@@ -51,7 +51,7 @@ final class StaffAccountController extends Controller
             'permission_overrides' => $account->permission_overrides,
         ]);
 
-        return redirect()->route('panel.staff.edit', $account)->with('status', 'Konto pracownika zostało utworzone.');
+        return redirect()->route('panel.staff.edit', $account)->with('status', trans('identity::flash.staff_created'));
     }
 
     public function edit(StaffAccount $staffAccount, PermissionRegistry $permissions): Response
@@ -73,7 +73,7 @@ final class StaffAccountController extends Controller
 
         if ($staffAccount->is($request->user()) && ! $validated['is_active']) {
             throw ValidationException::withMessages([
-                'is_active' => 'Nie możesz dezaktywować aktualnie używanego konta.',
+                'is_active' => trans('identity::flash.cannot_deactivate_self'),
             ]);
         }
 
@@ -117,7 +117,7 @@ final class StaffAccountController extends Controller
             ],
         ]);
 
-        return back()->with('status', 'Konto pracownika zostało zapisane.');
+        return back()->with('status', trans('identity::flash.staff_saved'));
     }
 
     /** @return array{name:string,email:string,password:?string,role:string,permissions:array<string,string>,is_active:bool} */
@@ -168,10 +168,10 @@ final class StaffAccountController extends Controller
     private function roles(): array
     {
         return [
-            ['value' => SystemStaffRole::Administrator->value, 'label' => 'Administrator'],
-            ['value' => SystemStaffRole::StoreManager->value, 'label' => 'Kierownik sklepu'],
-            ['value' => SystemStaffRole::WarehouseWorker->value, 'label' => 'Magazynier'],
-            ['value' => SystemStaffRole::ContentEditor->value, 'label' => 'Redaktor treści'],
+            ['value' => SystemStaffRole::Administrator->value, 'label' => trans('identity::labels.role_administrator')],
+            ['value' => SystemStaffRole::StoreManager->value, 'label' => trans('identity::labels.role_store_manager')],
+            ['value' => SystemStaffRole::WarehouseWorker->value, 'label' => trans('identity::labels.role_warehouse_worker')],
+            ['value' => SystemStaffRole::ContentEditor->value, 'label' => trans('identity::labels.role_content_editor')],
         ];
     }
 

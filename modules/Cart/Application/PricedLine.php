@@ -14,7 +14,10 @@ namespace Litecommerce\Modules\Cart\Application;
  */
 final readonly class PricedLine
 {
-    /** @param  list<array{code:string,amount:string,base_amount:string}>  $couponAllocations */
+    /**
+     * @param  list<array{code:string,amount:string,base_amount:string}>  $couponAllocations
+     * @param  list<array{code:string,label:string,net_amount:string,vat_amount:string,gross_amount:string}>  $adjustmentAllocations
+     */
     public function __construct(
         public int $variantId,
         /** Null only for a variant Catalog no longer knows at all (e.g. deleted while sitting in a cart) — nothing to look up an image for. */
@@ -32,5 +35,17 @@ final readonly class PricedLine
         public bool $promotionalActive = false,
         public string $couponDiscountAmount = '0',
         public array $couponAllocations = [],
+        public array $adjustmentAllocations = [],
     ) {}
+
+    /** @param  list<array{code:string,label:string,net_amount:string,vat_amount:string,gross_amount:string}>  $allocations */
+    public function withAdjustmentAllocations(array $allocations): self
+    {
+        return new self(
+            $this->variantId, $this->productId, $this->sku, $this->displayName, $this->productType, $this->quantity,
+            $this->unitAmount, $this->lineNetAmount, $this->lineVatAmount, $this->lineGrossAmount, $this->available,
+            $this->unavailableReason, $this->promotionalActive, $this->couponDiscountAmount, $this->couponAllocations,
+            $allocations,
+        );
+    }
 }

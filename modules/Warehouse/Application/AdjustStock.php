@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Warehouse\Application;
 
 use Illuminate\Support\Facades\DB;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
 use Litecommerce\Modules\Warehouse\Contracts\StockAdjuster;
 use Litecommerce\Modules\Warehouse\Contracts\StockMovementType;
@@ -18,6 +18,7 @@ final class AdjustStock implements StockAdjuster
     public function __construct(
         private readonly VariantCatalog $variants,
         private readonly StockItemLocator $locator,
+        private readonly ProductTypeRegistry $productTypes,
     ) {}
 
     public function setAllowBackorder(int $variantId, bool $allowed): void
@@ -92,8 +93,8 @@ final class AdjustStock implements StockAdjuster
             throw new \InvalidArgumentException("Variant {$variantId} does not exist.");
         }
 
-        if ($variant->productType !== ProductType::Physical->value) {
-            throw new \InvalidArgumentException("Variant {$variantId} is not physical — stock is not tracked for digital products.");
+        if (! $this->productTypes->get($variant->productType)->tracksStock) {
+            throw new \InvalidArgumentException("Variant {$variantId} has a product type that does not track stock.");
         }
     }
 }

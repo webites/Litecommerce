@@ -138,11 +138,11 @@ final class BlogManagementTest extends TestCase
     {
         $this->actingAs($this->staff)->get(route('panel.blog.posts.edit', 999999))
             ->assertRedirect(route('panel.blog.posts.index'))
-            ->assertSessionHas('error', 'Wpis nie został znaleziony.');
+            ->assertSessionHas('error', trans('blog::flash.post_not_found'));
 
         $this->actingAs($this->staff)->put(route('panel.blog.categories.update', 999999), [
             'locale' => 'pl', 'name' => 'Brak', 'slug' => 'brak', 'description' => '', 'seo_title' => '', 'seo_description' => '',
         ])->assertRedirect(route('panel.blog.categories.index'))
-            ->assertSessionHas('error', 'Kategoria bloga nie została znaleziona.');
+            ->assertSessionHas('error', trans('blog::flash.category_not_found'));
     }
 }

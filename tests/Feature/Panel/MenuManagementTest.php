@@ -195,7 +195,7 @@ final class MenuManagementTest extends TestCase
         $response = $this->actingAs($staff)->get(route('panel.cms.menus.edit', 999999));
 
         $response->assertRedirect(route('panel.cms.menus.index'));
-        $response->assertSessionHas('error', 'Menu nie zostało znalezione.');
+        $response->assertSessionHas('error', trans('cms::flash.menu_not_found'));
     }
 
     public function test_updating_settings_of_a_menu_that_no_longer_exists_redirects_to_the_index_with_a_message(): void

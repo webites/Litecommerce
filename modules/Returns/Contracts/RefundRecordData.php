@@ -22,5 +22,8 @@ final readonly class RefundRecordData
         public \DateTimeImmutable $decidedAt,
         public ?\DateTimeImmutable $paidOutAt,
         public ?string $payoutReference,
+        public string $adjustmentsNetAmount = '0',
+        public string $adjustmentsVatAmount = '0',
+        public string $adjustmentsGrossAmount = '0',
     ) {}
 }

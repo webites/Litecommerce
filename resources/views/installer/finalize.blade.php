@@ -5,10 +5,10 @@
 @section('step', '3')
 
 @section('content')
-    <form method="POST" action="{{ route('install.finalize.store') }}">
+    <form class="page" method="POST" action="{{ route('install.finalize.store') }}">
         @csrf
         <div class="actions">
-            <button type="submit" class="primary">{{ __('installer::messages.finalize.install') }}</button>
+            <button type="submit" class="button">{{ __('installer::messages.finalize.install') }}</button>
         </div>
         <p class="hint">{{ __('installer::messages.finalize.hint') }}</p>
     </form>

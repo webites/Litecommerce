@@ -46,6 +46,9 @@ return new class extends Migration
             $table->decimal('products_net_amount', 20, 6)->default(0);
             $table->decimal('products_vat_amount', 20, 6)->default(0);
             $table->decimal('products_gross_amount', 20, 6)->default(0);
+            $table->decimal('adjustments_net_amount', 20, 6)->default(0);
+            $table->decimal('adjustments_vat_amount', 20, 6)->default(0);
+            $table->decimal('adjustments_gross_amount', 20, 6)->default(0);
             $table->decimal('coupon_restored_amount', 20, 6)->default(0);
             $table->decimal('delivery_net_amount', 20, 6)->nullable();
             $table->decimal('delivery_vat_amount', 20, 6)->nullable();
@@ -78,6 +81,7 @@ return new class extends Migration
             $table->decimal('vat_amount', 20, 6)->nullable();
             $table->decimal('gross_amount', 20, 6)->nullable();
             $table->json('coupon_allocations')->nullable();
+            $table->json('adjustment_allocations')->nullable();
             $table->decimal('money_refund_amount', 20, 6)->nullable();
             $table->foreignId('refund_record_id')->nullable()->constrained('refund_records')->nullOnDelete();
             $table->text('decision_reason')->nullable();

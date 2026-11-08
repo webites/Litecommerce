@@ -44,7 +44,7 @@ final class BlogPostController extends Controller
                     if ($translation === null) {
                         return [
                             'id' => (int) $post->getKey(),
-                            'title' => 'Brak tłumaczenia',
+                            'title' => trans('blog::labels.no_translation'),
                             'slug' => '',
                             'status' => $scheduled ? 'scheduled' : $post->status,
                             'date' => ($post->publish_at ?? $post->created_at)?->toAtomString(),
@@ -74,7 +74,7 @@ final class BlogPostController extends Controller
         $post = $saver->handle(null, $this->data($request));
         $this->audit($request, $audit, 'blog.post.created', $post);
 
-        return redirect()->route('panel.blog.posts.edit', $post)->with('status', 'Wpis został utworzony.');
+        return redirect()->route('panel.blog.posts.edit', $post)->with('status', trans('blog::flash.post_created'));
     }
 
     public function edit(int $post, Request $request, LanguageRepository $languages, BlogCatalog $catalog, MediaLibrary $media): Response|RedirectResponse
@@ -125,7 +125,7 @@ final class BlogPostController extends Controller
         $saver->handle($postModel, $this->data($request));
         $this->audit($request, $audit, 'blog.post.saved', $postModel);
 
-        $response = back()->with('status', 'Wpis został zapisany.');
+        $response = back()->with('status', trans('blog::flash.post_saved'));
 
         if ($wasPublished && $oldSlug !== null && $oldSlug !== $newSlug) {
             $response->with('redirectSuggestion', ['locale' => $locale, 'from_path' => "/blog/{$oldSlug}", 'to_path' => "/blog/{$newSlug}"]);
@@ -145,7 +145,7 @@ final class BlogPostController extends Controller
         $this->audit($request, $audit, 'blog.post.archived', $postModel);
         DB::afterCommit(fn () => CommittedEvent::dispatch(new BlogContentChanged));
 
-        return redirect()->route('panel.blog.posts.index')->with('status', 'Wpis został zarchiwizowany.');
+        return redirect()->route('panel.blog.posts.index')->with('status', trans('blog::flash.post_archived'));
     }
 
     public function uploadFeaturedImage(Request $request, int $post, MediaLibrary $media, AuditLogger $audit): RedirectResponse
@@ -169,7 +169,7 @@ final class BlogPostController extends Controller
         $postModel->update(['featured_media_id' => $uploaded->id]);
         $this->audit($request, $audit, 'blog.post.featured_image_uploaded', $postModel);
 
-        return back()->with('status', 'Obraz wyróżniający został zapisany.');
+        return back()->with('status', trans('blog::flash.featured_image_saved'));
     }
 
     public function removeFeaturedImage(Request $request, int $post, AuditLogger $audit): RedirectResponse
@@ -182,7 +182,7 @@ final class BlogPostController extends Controller
         $postModel->update(['featured_media_id' => null]);
         $this->audit($request, $audit, 'blog.post.featured_image_removed', $postModel);
 
-        return back()->with('status', 'Obraz wyróżniający został usunięty.');
+        return back()->with('status', trans('blog::flash.featured_image_removed'));
     }
 
     /** @return array<string, mixed> */
@@ -222,7 +222,7 @@ final class BlogPostController extends Controller
 
     private function notFound(): RedirectResponse
     {
-        return redirect()->route('panel.blog.posts.index')->with('error', 'Wpis nie został znaleziony.');
+        return redirect()->route('panel.blog.posts.index')->with('error', trans('blog::flash.post_not_found'));
     }
 
     private function audit(Request $request, AuditLogger $audit, string $action, BlogPost $post): void

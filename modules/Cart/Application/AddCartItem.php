@@ -31,7 +31,7 @@ final class AddCartItem
     public function execute(int $cartId, int $variantId, string $quantity, string $locale): void
     {
         if (! Quantity::isPositive($quantity)) {
-            throw new CartValidationException('invalid_quantity', 'Ilość musi być dodatnia.');
+            throw new CartValidationException('invalid_quantity', 'The quantity is invalid.');
         }
 
         DB::transaction(function () use ($cartId, $variantId, $quantity, $locale): void {
@@ -40,18 +40,18 @@ final class AddCartItem
             $variant = $this->variants->findMany([$variantId], $locale)[$variantId] ?? null;
 
             if ($variant === null || ! $variant->enabled) {
-                throw new CartValidationException('variant_unavailable', 'Ten produkt jest niedostępny.');
+                throw new CartValidationException('variant_unavailable', 'The product is unavailable.');
             }
 
             if ($this->prices->quote($variantId, $cart->currency_code, $quantity) === null) {
-                throw new CartValidationException('no_price', 'Ten produkt nie ma jeszcze ceny.');
+                throw new CartValidationException('no_price', 'The product has no price yet.');
             }
 
             $existing = CartItem::query()->where('cart_id', $cart->id)->where('variant_id', $variantId)->first();
             $newQuantity = $existing === null ? $quantity : Quantity::add($existing->quantity, $quantity);
 
             if (! Quantity::isWithinBounds($newQuantity, $variant->minimumQuantity, $variant->maximumQuantity, $variant->quantityStep)) {
-                throw new CartValidationException('quantity_out_of_bounds', 'Żądana ilość przekracza dopuszczalny zakres dla tego produktu.');
+                throw new CartValidationException('quantity_out_of_bounds', 'The requested quantity is out of range.');
             }
 
             if ($existing === null) {

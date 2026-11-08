@@ -81,4 +81,9 @@ return [
         'load_error' => 'Nie udało się wczytać biblioteki mediów.',
         'upload_error' => 'Nie udało się wgrać obrazu.',
     ],
+    'request_error_network' => 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.',
+    'request_error_session_expired' => 'Sesja wygasła. Odśwież stronę i spróbuj ponownie.',
+    'request_error_too_many' => 'Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.',
+    'request_error_server' => 'Serwer nie mógł zrealizować żądania. Spróbuj ponownie za chwilę.',
+    'request_error_generic' => 'Coś poszło nie tak. Spróbuj ponownie.',
 ];

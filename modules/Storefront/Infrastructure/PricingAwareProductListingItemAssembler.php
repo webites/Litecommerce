@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Storefront\Infrastructure;
 
 use Litecommerce\Modules\Catalog\Contracts\ProductSummaryData;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Pricing\Contracts\PriceQuoter;
 use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
 use Litecommerce\Modules\Storefront\Contracts\ProductListingItemAssembler;
@@ -15,7 +15,7 @@ use Litecommerce\Modules\Warehouse\Contracts\StockLevelCatalog;
 
 final readonly class PricingAwareProductListingItemAssembler implements ProductListingItemAssembler
 {
-    public function __construct(private PriceQuoter $prices, private StockLevelCatalog $stock, private CurrencyRepository $currencies) {}
+    public function __construct(private PriceQuoter $prices, private StockLevelCatalog $stock, private CurrencyRepository $currencies, private ProductTypeRegistry $productTypes) {}
 
     public function assemble(array $items, string $currencyCode): array
     {
@@ -53,7 +53,7 @@ final readonly class PricingAwareProductListingItemAssembler implements ProductL
 
     private function isAvailable(string $productType, ?StockItemData $stockItem): bool
     {
-        if ($productType === ProductType::Digital->value) {
+        if (! $this->productTypes->get($productType)->tracksStock) {
             return true;
         }
 

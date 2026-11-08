@@ -6,7 +6,7 @@ namespace Litecommerce\Modules\Search\Infrastructure;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\SearchDocumentData;
 use Litecommerce\Modules\Catalog\Contracts\SearchDocumentSource;
 use Litecommerce\Modules\Pricing\Contracts\PriceQuoter;
@@ -26,6 +26,7 @@ final readonly class DatabaseSearchIndex implements SearchIndex
         private StockLevelCatalog $stock,
         private CurrencyRepository $currencies,
         private SearchTextNormalizer $normalizer,
+        private ProductTypeRegistry $productTypes,
     ) {}
 
     public function ensureReady(): void
@@ -212,7 +213,7 @@ final readonly class DatabaseSearchIndex implements SearchIndex
             return false;
         }
 
-        if ($productType === ProductType::Digital->value) {
+        if (! $this->productTypes->get($productType)->tracksStock) {
             return true;
         }
 

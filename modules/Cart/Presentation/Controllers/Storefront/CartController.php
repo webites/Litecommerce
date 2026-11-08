@@ -20,13 +20,13 @@ use Litecommerce\Modules\Cart\Application\UpdateCartItemQuantity;
 use Litecommerce\Modules\Cart\Domain\Decimal;
 use Litecommerce\Modules\Cart\Infrastructure\Models\Cart;
 use Litecommerce\Modules\Cart\Infrastructure\Models\CartItem;
+use Litecommerce\Modules\Cart\Presentation\Concerns\RespondsWithCartRejection;
 use Litecommerce\Modules\Cart\Presentation\Requests\AddCartItemRequest;
 use Litecommerce\Modules\Cart\Presentation\Requests\AttachCouponCodeRequest;
 use Litecommerce\Modules\Cart\Presentation\Requests\SetCartCurrencyRequest;
 use Litecommerce\Modules\Cart\Presentation\Requests\UpdateCartItemRequest;
 use Litecommerce\Modules\Coupons\Contracts\CouponCodeAllocationOutcome;
 use Litecommerce\Modules\Media\Contracts\MediaAttachments;
-use Litecommerce\Modules\Store\Contracts\LanguageRepository;
 
 /**
  * JSON API for the current request's cart — no storefront theme exists
@@ -36,48 +36,50 @@ use Litecommerce\Modules\Store\Contracts\LanguageRepository;
  */
 final class CartController extends Controller
 {
-    public function show(Request $request, CartResolver $resolver, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    use RespondsWithCartRejection;
+
+    public function show(Request $request, CartResolver $resolver, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
 
-        return $this->present($cartId, $priceLines, $languages, $media);
+        return $this->present($cartId, $priceLines, $media);
     }
 
-    public function addItem(AddCartItemRequest $request, CartResolver $resolver, AddCartItem $action, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
-    {
-        $cartId = $resolver->resolveCartId($request);
-
-        try {
-            $action->execute($cartId, (int) $request->integer('variant_id'), (string) $request->string('quantity'), $this->locale($languages));
-        } catch (CartValidationException $exception) {
-            return $this->rejected($exception);
-        }
-
-        return $this->present($cartId, $priceLines, $languages, $media);
-    }
-
-    public function updateItem(UpdateCartItemRequest $request, int $variantId, CartResolver $resolver, UpdateCartItemQuantity $action, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    public function addItem(AddCartItemRequest $request, CartResolver $resolver, AddCartItem $action, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
 
         try {
-            $action->execute($cartId, $variantId, (string) $request->string('quantity'), $this->locale($languages));
+            $action->execute($cartId, (int) $request->integer('variant_id'), (string) $request->string('quantity'), app()->getLocale());
         } catch (CartValidationException $exception) {
             return $this->rejected($exception);
         }
 
-        return $this->present($cartId, $priceLines, $languages, $media);
+        return $this->present($cartId, $priceLines, $media);
     }
 
-    public function removeItem(Request $request, int $variantId, CartResolver $resolver, RemoveCartItem $action, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    public function updateItem(UpdateCartItemRequest $request, int $variantId, CartResolver $resolver, UpdateCartItemQuantity $action, PriceLines $priceLines, MediaAttachments $media): JsonResponse
+    {
+        $cartId = $resolver->resolveCartId($request);
+
+        try {
+            $action->execute($cartId, $variantId, (string) $request->string('quantity'), app()->getLocale());
+        } catch (CartValidationException $exception) {
+            return $this->rejected($exception);
+        }
+
+        return $this->present($cartId, $priceLines, $media);
+    }
+
+    public function removeItem(Request $request, int $variantId, CartResolver $resolver, RemoveCartItem $action, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
         $action->execute($cartId, $variantId);
 
-        return $this->present($cartId, $priceLines, $languages, $media);
+        return $this->present($cartId, $priceLines, $media);
     }
 
-    public function setCurrency(SetCartCurrencyRequest $request, CartResolver $resolver, SetCartCurrency $action, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    public function setCurrency(SetCartCurrencyRequest $request, CartResolver $resolver, SetCartCurrency $action, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
 
@@ -87,10 +89,10 @@ final class CartController extends Controller
             return $this->rejected($exception);
         }
 
-        return $this->present($cartId, $priceLines, $languages, $media);
+        return $this->present($cartId, $priceLines, $media);
     }
 
-    public function attachCoupon(AttachCouponCodeRequest $request, CartResolver $resolver, AttachCouponCode $action, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    public function attachCoupon(AttachCouponCodeRequest $request, CartResolver $resolver, AttachCouponCode $action, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
 
@@ -100,22 +102,22 @@ final class CartController extends Controller
             return $this->rejected($exception);
         }
 
-        return $this->present($cartId, $priceLines, $languages, $media);
+        return $this->present($cartId, $priceLines, $media);
     }
 
-    public function detachCoupon(Request $request, string $code, CartResolver $resolver, DetachCouponCode $action, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    public function detachCoupon(Request $request, string $code, CartResolver $resolver, DetachCouponCode $action, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cartId = $resolver->resolveCartId($request);
         $action->execute($cartId, $code);
 
-        return $this->present($cartId, $priceLines, $languages, $media);
+        return $this->present($cartId, $priceLines, $media);
     }
 
-    private function present(int $cartId, PriceLines $priceLines, LanguageRepository $languages, MediaAttachments $media): JsonResponse
+    private function present(int $cartId, PriceLines $priceLines, MediaAttachments $media): JsonResponse
     {
         $cart = Cart::query()->findOrFail($cartId);
         $items = CartItem::query()->where('cart_id', $cartId)->get();
-        $priced = $priceLines->price($items, $cart->currency_code, $this->locale($languages), $cartId);
+        $priced = $priceLines->price($items, $cart->currency_code, app()->getLocale(), $cartId);
         $imagesByProductId = $this->imagesByProductId($priced->lines, $media);
 
         $decimals = $this->decimalsOf($priced->totalGrossAmount);
@@ -205,17 +207,5 @@ final class CartController extends Controller
             'status' => $outcome->status->value,
             'allocated_amount' => $outcome->allocatedAmount,
         ];
-    }
-
-    private function rejected(CartValidationException $exception): JsonResponse
-    {
-        return response()->json(['code' => $exception->errorCode, 'message' => $exception->getMessage()], 422);
-    }
-
-    private function locale(LanguageRepository $languages): string
-    {
-        $language = $languages->default();
-
-        return $language === null ? (string) config('app.locale', 'pl') : $language->code;
     }
 }

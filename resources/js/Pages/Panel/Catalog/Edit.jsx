@@ -61,6 +61,7 @@ export default function Edit({ product, languages, types, statuses, variantSeoMo
     const status = usePage().props.flash?.status;
     const canManagePricing = usePage().props.auth.can.managePricing;
     const canManageInventory = usePage().props.auth.can.manageInventory;
+    const productType = types.find((option) => option.value === product.type) ?? {};
     const submit = (event) => { event.preventDefault(); form.put(route('panel.catalog.products.update', product.id), { preserveScroll: true }); };
     const archive = () => {
         if (window.confirm(t('catalog.edit.archive_confirm', 'Archive this product? Its data and history will be kept.'))) router.delete(route('panel.catalog.products.destroy', product.id));
@@ -384,10 +385,10 @@ export default function Edit({ product, languages, types, statuses, variantSeoMo
                     description={(
                         <>
                             {t('catalog.edit.variants_description', 'The generator only adds missing combinations and keeps existing SKUs. Product limit: :max variants.', { max: maxVariants })}
-                            {product.type === 'physical' && t('catalog.edit.variants_description_physical_suffix', ' Stock receipts and corrections are done from the warehouse view.')}
+                            {productType.tracks_stock && t('catalog.edit.variants_description_physical_suffix', ' Stock receipts and corrections are done from the warehouse view.')}
                         </>
                     )}
-                    action={canManageInventory && product.type === 'physical' && (
+                    action={canManageInventory && productType.tracks_stock && (
                         <Button variant="outline" size="sm" href={route('panel.warehouse.index')}>{t('catalog.edit.warehouse', 'Warehouse')}</Button>
                     )}
                 >
@@ -651,7 +652,7 @@ export default function Edit({ product, languages, types, statuses, variantSeoMo
                         </form>
                     )}
 
-                    {product.type === 'digital' && editingVariant && (
+                    {productType.grants_digital_access && editingVariant && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 20 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{t('catalog.edit.digital_files_title', 'Digital files')}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>

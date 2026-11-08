@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Litecommerce\Modules\Catalog\Infrastructure\Repositories;
 
-use Litecommerce\Modules\Catalog\Contracts\ProductType;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
 use Litecommerce\Modules\Catalog\Contracts\VariantData;
 use Litecommerce\Modules\Catalog\Contracts\VariantSummaryData;
@@ -12,6 +12,8 @@ use Litecommerce\Modules\Catalog\Infrastructure\Models\ProductVariant;
 
 final class EloquentVariantCatalog implements VariantCatalog
 {
+    public function __construct(private readonly ProductTypeRegistry $productTypes) {}
+
     public function find(int $variantId): ?VariantData
     {
         $variant = ProductVariant::query()->with('product')->find($variantId);
@@ -25,7 +27,7 @@ final class EloquentVariantCatalog implements VariantCatalog
             productId: $variant->product_id,
             productType: $variant->product->type,
             sku: $variant->sku,
-            enabled: $variant->enabled,
+            enabled: $variant->enabled && $this->productTypes->has($variant->product->type),
             unitCode: $variant->product->unit_code,
             minimumQuantity: $variant->product->minimum_quantity,
             maximumQuantity: $variant->product->maximum_quantity,
@@ -33,10 +35,10 @@ final class EloquentVariantCatalog implements VariantCatalog
         );
     }
 
-    public function paginatePhysical(string $locale, int $perPage, int $page): array
+    public function paginateStockTracked(string $locale, int $perPage, int $page): array
     {
         $query = ProductVariant::query()
-            ->whereHas('product', fn ($q) => $q->where('type', ProductType::Physical->value))
+            ->whereHas('product', fn ($q) => $q->whereIn('type', $this->stockTrackedTypeKeys()))
             ->with([
                 'product.translations' => fn ($q) => $q->where('locale', $locale),
                 'translations' => fn ($q) => $q->where('locale', $locale),
@@ -46,7 +48,7 @@ final class EloquentVariantCatalog implements VariantCatalog
         $total = (clone $query)->count();
         $variants = $query->forPage($page, $perPage)->get();
 
-        $items = $variants->map(static function (ProductVariant $variant): VariantSummaryData {
+        $items = $variants->map(function (ProductVariant $variant): VariantSummaryData {
             $variantTranslation = $variant->translations->first();
             $productTranslation = $variant->product->translations->first();
             $variantName = $variantTranslation === null ? null : $variantTranslation->name;
@@ -60,7 +62,7 @@ final class EloquentVariantCatalog implements VariantCatalog
                 gtin: $variant->gtin ?? '',
                 mpn: $variant->mpn ?? '',
                 displayName: $name,
-                enabled: $variant->enabled,
+                enabled: $variant->enabled && $this->productTypes->has($variant->product->type),
                 productType: $variant->product->type,
                 minimumQuantity: $variant->product->minimum_quantity,
                 maximumQuantity: $variant->product->maximum_quantity,
@@ -105,7 +107,7 @@ final class EloquentVariantCatalog implements VariantCatalog
                 gtin: $variant->gtin ?? '',
                 mpn: $variant->mpn ?? '',
                 displayName: $name,
-                enabled: $variant->enabled,
+                enabled: $variant->enabled && $this->productTypes->has($variant->product->type),
                 productType: $variant->product->type,
                 minimumQuantity: $variant->product->minimum_quantity,
                 maximumQuantity: $variant->product->maximum_quantity,
@@ -117,5 +119,14 @@ final class EloquentVariantCatalog implements VariantCatalog
         }
 
         return $result;
+    }
+
+    /** @return list<string> */
+    private function stockTrackedTypeKeys(): array
+    {
+        return array_values(array_map(
+            static fn ($type): string => $type->key,
+            array_filter($this->productTypes->all(), static fn ($type): bool => $type->tracksStock),
+        ));
     }
 }

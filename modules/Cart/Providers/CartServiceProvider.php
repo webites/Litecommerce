@@ -11,8 +11,10 @@ use Litecommerce\Modules\Cart\Console\PruneInactiveCartsCommand;
 use Litecommerce\Modules\Cart\Contracts\CartMerger;
 use Litecommerce\Modules\Cart\Contracts\CartOwnershipResolver;
 use Litecommerce\Modules\Cart\Contracts\CheckoutDraftCatalog;
+use Litecommerce\Modules\Cart\Contracts\PricingAdjustmentRegistry;
 use Litecommerce\Modules\Cart\Infrastructure\EloquentCartMerger;
 use Litecommerce\Modules\Cart\Infrastructure\EloquentCheckoutDraftCatalog;
+use Litecommerce\Modules\Cart\Infrastructure\InMemoryPricingAdjustmentRegistry;
 use Litecommerce\Modules\Scheduler\Contracts\ScheduledTaskRegistry;
 
 final class CartServiceProvider extends ServiceProvider
@@ -24,6 +26,7 @@ final class CartServiceProvider extends ServiceProvider
         $this->app->bind(CartMerger::class, EloquentCartMerger::class);
         $this->app->bind(CheckoutDraftCatalog::class, EloquentCheckoutDraftCatalog::class);
         $this->app->bind(CartOwnershipResolver::class, CartResolver::class);
+        $this->app->singleton(PricingAdjustmentRegistry::class, InMemoryPricingAdjustmentRegistry::class);
     }
 
     public function boot(): void

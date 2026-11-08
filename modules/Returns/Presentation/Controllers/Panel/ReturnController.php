@@ -13,6 +13,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Litecommerce\Modules\Audit\Contracts\AuditEntryData;
 use Litecommerce\Modules\Audit\Contracts\AuditLogger;
+use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Orders\Contracts\OrderLineDetailData;
 use Litecommerce\Modules\Orders\Contracts\OrderReturnCatalog;
 use Litecommerce\Modules\Returns\Application\CreateReturnRequest;
@@ -31,6 +32,8 @@ use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
 
 final class ReturnController extends Controller
 {
+    public function __construct(private readonly ProductTypeRegistry $productTypes) {}
+
     public function index(Request $request, ReturnCatalog $catalog): Response
     {
         $status = $request->query('status');
@@ -220,7 +223,7 @@ final class ReturnController extends Controller
 
     private function returnRequestNotFound(): RedirectResponse
     {
-        return redirect()->route('panel.returns.index')->with('error', 'Zgłoszenie zwrotu nie zostało znalezione.');
+        return redirect()->route('panel.returns.index')->with('error', trans('returns::flash.return_not_found'));
     }
 
     /** @param  Collection<int, OrderLineDetailData>  $linesByOrderLineId */
@@ -236,11 +239,11 @@ final class ReturnController extends Controller
                 return [
                     'id' => $line->id, 'order_line_id' => $line->orderLineId,
                     'sku' => $orderLine?->sku, 'display_name' => $orderLine?->displayName,
-                    'product_type' => $orderLine?->productType, 'ordered_quantity' => $orderLine?->quantity,
+                    'product_type' => $orderLine?->productType, 'tracks_stock' => $this->productTypes->get((string) $orderLine?->productType)->tracksStock, 'ordered_quantity' => $orderLine?->quantity,
                     'quantity' => $line->quantity, 'reason_id' => $line->reasonId, 'reason_comment' => $line->reasonComment,
                     'status' => $line->status, 'restock' => $line->restock, 'restocked_quantity' => $line->restockedQuantity,
                     'net_amount' => $line->netAmount, 'vat_amount' => $line->vatAmount, 'gross_amount' => $line->grossAmount,
-                    'coupon_allocations' => $line->couponAllocations, 'money_refund_amount' => $line->moneyRefundAmount,
+                    'coupon_allocations' => $line->couponAllocations, 'adjustment_allocations' => $line->adjustmentAllocations, 'money_refund_amount' => $line->moneyRefundAmount,
                     'decision_reason' => $line->decisionReason, 'decided_by' => $line->decidedBy,
                     'decided_at' => $line->decidedAt?->format(DATE_ATOM),
                 ];
@@ -248,7 +251,7 @@ final class ReturnController extends Controller
             'refunds' => array_map(fn ($refund): array => [
                 'id' => $refund->id, 'products_net_amount' => $refund->productsNetAmount,
                 'products_vat_amount' => $refund->productsVatAmount, 'products_gross_amount' => $refund->productsGrossAmount,
-                'coupon_restored_amount' => $refund->couponRestoredAmount,
+                'coupon_restored_amount' => $refund->couponRestoredAmount, 'adjustments_gross_amount' => $refund->adjustmentsGrossAmount,
                 'delivery_gross_amount' => $refund->deliveryGrossAmount, 'money_refund_amount' => $refund->moneyRefundAmount,
                 'decided_by' => $refund->decidedBy, 'decided_at' => $refund->decidedAt->format(DATE_ATOM),
                 'paid_out_at' => $refund->paidOutAt?->format(DATE_ATOM), 'payout_reference' => $refund->payoutReference,

@@ -117,7 +117,7 @@ export default function Show({ returnRequest, order, reasons }) {
                                                     options={[{ label: t('returns.decision_approve', 'Approve'), value: 'approved' }, { label: t('returns.decision_reject', 'Reject'), value: 'rejected' }]}
                                                     onChange={(e) => setField(l.id, 'decision', e.target.value)}
                                                 />
-                                                {d.decision === 'approved' && l.product_type === 'physical' && (
+                                                {d.decision === 'approved' && l.tracks_stock && (
                                                     <>
                                                         <Checkbox label={t('returns.restock_checkbox', 'Return to stock')} checked={d.restock} onChange={(checked) => setField(l.id, 'restock', checked)} />
                                                         {d.restock && <Input placeholder={t('returns.max_quantity_placeholder', '≤ :qty', { qty: l.quantity })} value={d.restocked_quantity} onChange={(e) => setField(l.id, 'restocked_quantity', e.target.value)} />}

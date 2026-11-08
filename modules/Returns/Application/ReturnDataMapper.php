@@ -31,6 +31,7 @@ final class ReturnDataMapper
             couponAllocations: $line->coupon_allocations ?? [], moneyRefundAmount: $line->money_refund_amount,
             decisionReason: $line->decision_reason, decidedBy: $line->decided_by,
             decidedAt: $line->decided_at === null ? null : \DateTimeImmutable::createFromInterface($line->decided_at),
+            adjustmentAllocations: $line->adjustment_allocations ?? [],
         );
     }
 
@@ -45,6 +46,8 @@ final class ReturnDataMapper
             decidedBy: $refund->decided_by, decidedAt: \DateTimeImmutable::createFromInterface($refund->decided_at),
             paidOutAt: $refund->paid_out_at === null ? null : \DateTimeImmutable::createFromInterface($refund->paid_out_at),
             payoutReference: $refund->payout_reference,
+            adjustmentsNetAmount: $refund->adjustments_net_amount, adjustmentsVatAmount: $refund->adjustments_vat_amount,
+            adjustmentsGrossAmount: $refund->adjustments_gross_amount,
         );
     }
 

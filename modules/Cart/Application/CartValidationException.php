@@ -7,16 +7,17 @@ namespace Litecommerce\Modules\Cart\Application;
 /**
  * A business-rule rejection the Storefront controllers turn into a 422
  * with a stable machine-readable code, distinct from field-validation
- * errors (which stay as normal FormRequest 422s).
+ * errors (which stay as normal FormRequest 422s). The message is an
+ * English developer message; Presentation translates by code and params.
  */
 final class CartValidationException extends \RuntimeException
 {
-    public readonly string $errorCode;
-
-    public function __construct(string $errorCode, string $message)
-    {
+    /** @param array<string, scalar|null> $params */
+    public function __construct(
+        public readonly string $errorCode,
+        string $message,
+        public readonly array $params = [],
+    ) {
         parent::__construct($message);
-
-        $this->errorCode = $errorCode;
     }
 }
