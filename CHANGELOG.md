@@ -4,6 +4,10 @@ All notable changes to Litecommerce are listed here. The project follows
 [Semantic Versioning](https://semver.org/). While the version is below 1.0.0,
 minor versions may contain breaking changes.
 
+## 0.1.3 - 2026-11-08
+
+- Fixed the panel jumping far down the page when a checkbox or radio button was clicked (for example in the product form): the whole page no longer scrolls.
+
 ## 0.1.2 - 2026-11-08
 
 - The installer sets `APP_NAME` to Litecommerce when the environment file has none.

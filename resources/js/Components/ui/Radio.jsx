@@ -5,6 +5,7 @@ export default function Radio({ label, checked = false, onChange, disabled, name
     return (
         <label
             style={{
+                position: 'relative',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,

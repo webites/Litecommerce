@@ -7,6 +7,7 @@ export default function Checkbox({ label, checked = false, onChange, disabled, i
     return (
         <label
             style={{
+                position: 'relative',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
