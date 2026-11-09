@@ -59,6 +59,19 @@
                 </tbody>
             </table>
         @endforeach
+
+        @foreach ($product->specification as $group)
+            @if ($group->name !== null || count($product->specification) > 1)
+                <h3 class="spec-group">{{ $group->name ?? trans('catalog::product.specification_other') }}</h3>
+            @endif
+            <table class="spec-table">
+                <tbody>
+                    @foreach ($group->items as $item)
+                        <tr><th>{{ $item->name }}</th><td>{{ $item->value }}</td></tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endforeach
     </div>
 
     @foreach ($pluginTabs as $tab)

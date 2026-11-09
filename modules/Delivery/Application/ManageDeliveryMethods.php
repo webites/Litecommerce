@@ -23,6 +23,20 @@ final class ManageDeliveryMethods
         return DeliveryMethod::query()->create($this->methodAttributes($data));
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $pickupPoint
+     */
+    public function createWithPickupPoint(array $data, array $pickupPoint): DeliveryMethod
+    {
+        return DB::transaction(function () use ($data, $pickupPoint): DeliveryMethod {
+            $method = $this->create($data);
+            $this->addPickupPoint($method, $pickupPoint);
+
+            return $method;
+        });
+    }
+
     /** @param array<string, mixed> $data */
     public function update(DeliveryMethod $method, array $data): DeliveryMethod
     {

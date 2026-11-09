@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Litecommerce\Modules\Catalog\Infrastructure\Repositories;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Litecommerce\Modules\Catalog\Contracts\AttributeType;
 use Litecommerce\Modules\Catalog\Contracts\CategorySummaryData;
@@ -11,6 +12,8 @@ use Litecommerce\Modules\Catalog\Contracts\ProductCatalog;
 use Litecommerce\Modules\Catalog\Contracts\ProductOptionAxisData;
 use Litecommerce\Modules\Catalog\Contracts\ProductOptionValueData;
 use Litecommerce\Modules\Catalog\Contracts\ProductRelationType;
+use Litecommerce\Modules\Catalog\Contracts\ProductSpecificationGroupData;
+use Litecommerce\Modules\Catalog\Contracts\ProductSpecificationItemData;
 use Litecommerce\Modules\Catalog\Contracts\ProductStatus;
 use Litecommerce\Modules\Catalog\Contracts\ProductSummaryData;
 use Litecommerce\Modules\Catalog\Contracts\ProductViewData;
@@ -124,7 +127,62 @@ final class EloquentProductCatalog implements ProductCatalog
             optionAxes: $optionAxes,
             upsells: $relatedProducts[ProductRelationType::Upsell->value],
             crossSells: $relatedProducts[ProductRelationType::CrossSell->value],
+            specification: $this->specification((int) $product->getKey(), $locale),
         );
+    }
+
+    /** @return list<ProductSpecificationGroupData> */
+    private function specification(int $productId, string $locale): array
+    {
+        $rows = DB::table('product_attribute_values as pav')
+            ->join('attribute_definitions as d', 'd.id', '=', 'pav.attribute_definition_id')
+            ->leftJoin('attribute_definition_translations as dt', function ($join) use ($locale): void {
+                $join->on('dt.attribute_definition_id', '=', 'd.id')->where('dt.locale', $locale);
+            })
+            ->leftJoin('attribute_groups as g', 'g.id', '=', 'd.attribute_group_id')
+            ->leftJoin('attribute_group_translations as gt', function ($join) use ($locale): void {
+                $join->on('gt.attribute_group_id', '=', 'g.id')->where('gt.locale', $locale);
+            })
+            ->leftJoin('attribute_value_translations as vt', function ($join) use ($locale): void {
+                $join->on('vt.attribute_value_id', '=', 'pav.attribute_value_id')->where('vt.locale', $locale);
+            })
+            ->where('pav.product_id', $productId)
+            ->where('d.visible_on_product', true)
+            ->orderByRaw('g.position is null')->orderBy('g.position')->orderBy('g.id')
+            ->orderBy('d.position')->orderBy('d.key')->orderBy('pav.position')->orderBy('pav.id')
+            ->get(['d.id as definition_id', 'd.key', 'd.type', 'g.id as group_id', 'gt.name as group_name', 'dt.name as definition_name', 'vt.name as value_name', 'pav.attribute_value_id', 'pav.text_value', 'pav.number_value', 'pav.boolean_value']);
+
+        $groups = [];
+        foreach ($rows->groupBy('definition_id') as $definitionRows) {
+            $first = $definitionRows->first();
+            $value = $this->specificationValue($definitionRows);
+
+            if ($value === '') {
+                continue;
+            }
+
+            $groupKey = $first->group_id === null ? 0 : (int) $first->group_id;
+            $groups[$groupKey] ??= ['name' => $first->group_id === null ? null : ($first->group_name ?? null), 'items' => []];
+            $groups[$groupKey]['items'][] = new ProductSpecificationItemData($first->definition_name ?? $first->key, $value);
+        }
+
+        return array_values(array_map(
+            static fn (array $group): ProductSpecificationGroupData => new ProductSpecificationGroupData($group['name'], $group['items']),
+            $groups,
+        ));
+    }
+
+    /** @param Collection<int, \stdClass> $rows */
+    private function specificationValue(Collection $rows): string
+    {
+        $first = $rows->first();
+
+        return match ($first->type) {
+            AttributeType::Text->value => trim((string) $first->text_value),
+            AttributeType::Number->value => $first->number_value === null ? '' : rtrim(rtrim((string) $first->number_value, '0'), '.'),
+            AttributeType::Boolean->value => $first->boolean_value === null ? '' : trans($first->boolean_value ? 'catalog::product.yes' : 'catalog::product.no'),
+            default => $rows->pluck('value_name')->filter()->implode(', '),
+        };
     }
 
     /**

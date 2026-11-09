@@ -17,6 +17,7 @@ use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\SearchDocumentSource;
 use Litecommerce\Modules\Catalog\Contracts\VariantCatalog;
 use Litecommerce\Modules\Catalog\Infrastructure\InMemoryProductTypeRegistry;
+use Litecommerce\Modules\Catalog\Infrastructure\Models\Product;
 use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentBrandCatalog;
 use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentCatalogSeoSettingsRepository;
 use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentCategoryCatalog;
@@ -26,6 +27,9 @@ use Litecommerce\Modules\Catalog\Infrastructure\Repositories\EloquentVariantCata
 use Litecommerce\Modules\Catalog\Infrastructure\StoredCatalogHtml;
 use Litecommerce\Modules\Cms\Contracts\ArchetypeRegistry;
 use Litecommerce\Modules\DemoData\Contracts\DemoDataContributor;
+use Litecommerce\Modules\Identity\Contracts\CorePermission;
+use Litecommerce\Modules\Identity\Contracts\StaffPermissionChecker;
+use Litecommerce\Modules\Store\Contracts\SetupChecklist;
 
 final class CatalogServiceProvider extends ServiceProvider
 {
@@ -54,6 +58,16 @@ final class CatalogServiceProvider extends ServiceProvider
         $this->app->make(AuditRetentionRegistry::class)->keepIndefinitely('catalog.variant.price');
         $this->app->make(AuditRetentionRegistry::class)->keepIndefinitely('catalog.product.tax_assigned');
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'catalog');
+
+        $this->app->make(SetupChecklist::class)->register(
+            'catalog',
+            100,
+            'catalog::panel.setup_title',
+            'catalog::panel.setup_description',
+            '/panel/catalog/products/create',
+            static fn (): bool => Product::query()->exists(),
+            fn (): bool => auth()->id() !== null && $this->app->make(StaffPermissionChecker::class)->allows((int) auth()->id(), CorePermission::ManageCatalog->value),
+        );
 
         // Category/brand archives are the first two registrants of Cms's generic
         // archetype mechanism — see docs/knowledge-base/09-presentation.md.

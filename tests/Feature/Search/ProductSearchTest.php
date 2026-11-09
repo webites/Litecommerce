@@ -135,6 +135,28 @@ final class ProductSearchTest extends TestCase
         $this->assertSame(['a5'], array_map(static fn ($value): string => $value->key, $result->filters[0]->values));
     }
 
+    public function test_a_filterable_descriptive_attribute_becomes_a_facet_and_a_filter_but_a_plain_one_does_not(): void
+    {
+        $material = (int) DB::table('attribute_definitions')->insertGetId(['key' => 'material', 'type' => 'text', 'is_filterable' => true, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('attribute_definition_translations')->insert(['attribute_definition_id' => $material, 'locale' => 'pl', 'name' => 'Materiał', 'slug' => 'material', 'created_at' => now(), 'updated_at' => now()]);
+        $note = (int) DB::table('attribute_definitions')->insertGetId(['key' => 'note', 'type' => 'text', 'is_filterable' => false, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('attribute_definition_translations')->insert(['attribute_definition_id' => $note, 'locale' => 'pl', 'name' => 'Uwaga', 'slug' => 'uwaga', 'created_at' => now(), 'updated_at' => now()]);
+        $oak = $this->product('Stolik dębowy', 'stolik-debowy', [['sku' => 'OAK']]);
+        $pine = $this->product('Stolik sosnowy', 'stolik-sosnowy', [['sku' => 'PINE']]);
+        foreach ([[$oak, 'Dąb'], [$pine, 'Sosna']] as [$productId, $text]) {
+            foreach ([$material, $note] as $definitionId) {
+                DB::table('product_attribute_values')->insert(['product_id' => $productId, 'attribute_definition_id' => $definitionId, 'text_value' => $text, 'position' => 0, 'created_at' => now(), 'updated_at' => now()]);
+            }
+        }
+
+        app(SearchIndex::class)->rebuild();
+        $all = app(ProductSearchEngine::class)->search($this->criteria());
+        $filtered = app(ProductSearchEngine::class)->search($this->criteria(attributes: ['material' => ['dab']]));
+
+        $this->assertSame(['material'], array_map(static fn ($filter): string => $filter->key, $all->filters));
+        $this->assertSame(1, $filtered->total);
+    }
+
     public function test_warm_search_query_count_is_bounded_independently_of_page_size(): void
     {
         for ($i = 1; $i <= 30; $i++) {

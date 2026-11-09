@@ -19,6 +19,7 @@ const Input = forwardRef(function Input(
             {label && (
                 <label htmlFor={rest.id} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                     {label}
+                    {rest.required && <span aria-hidden="true" style={{ color: 'var(--danger-text)' }}> *</span>}
                 </label>
             )}
             <div

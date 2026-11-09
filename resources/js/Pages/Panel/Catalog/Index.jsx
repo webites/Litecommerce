@@ -34,6 +34,9 @@ export default function Index({ products }) {
                     title={t('catalog.index.title')}
                     actions={
                         <>
+                            <Button variant="outline" href={route('panel.catalog.products.references.attributes.index')}>
+                                {t('catalog.index.attributes')}
+                            </Button>
                             <Button variant="outline" href={route('panel.catalog.products.references.index')}>
                                 {t('catalog.index.brands_categories')}
                             </Button>

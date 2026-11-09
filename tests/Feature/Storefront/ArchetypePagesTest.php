@@ -57,7 +57,7 @@ final class ArchetypePagesTest extends TestCase
             ->assertSee('Buty sportowe')
             ->assertSee('But do biegania')
             ->assertSee('class="catalog-filter-block"', false)
-            ->assertSee('action="http://localhost:8080/pl/'.$slug.'"', false)
+            ->assertSee('action="'.url("/pl/{$slug}").'"', false)
             ->assertDontSee('name="category"', false);
 
         $this->get("/pl/{$slug}?min_price=100")->assertOk()

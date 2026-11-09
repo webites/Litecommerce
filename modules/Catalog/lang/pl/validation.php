@@ -12,4 +12,6 @@ return [
     'single_unit_type' => 'Ten typ produktu musi być sprzedawany pojedynczo, w ilości od 1 do 1.',
     'primary_category' => 'Kategoria główna musi być przypisana do produktu.',
     'category_self_parent' => 'Kategoria nie może stać się potomkiem samej siebie.',
+    'attribute_in_use_as_option' => 'Ten atrybut jest opcją wariantów produktów — nie można go usunąć.',
+    'attribute_value_in_use_as_option' => 'Ta wartość jest używana w wariantach produktów — nie można jej usunąć.',
 ];

@@ -6,9 +6,11 @@ import PanelSlot from '@/Components/ui/PanelSlot';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head } from '@inertiajs/react';
+import { CheckCircle2, Circle } from 'lucide-react';
 
-export default function Dashboard({ messages = [] }) {
+export default function Dashboard({ messages = [], setup_steps: setupSteps = [] }) {
     const t = useTranslate();
+    const pending = setupSteps.filter((step) => !step.done).length;
 
     return (
         <AuthenticatedLayout header={<PageHeader title={t('app.nav_dashboard')} />}>
@@ -26,6 +28,22 @@ export default function Dashboard({ messages = [] }) {
                                         {message.read && <span style={{ opacity: 0.7 }}>({t('notifications.read')})</span>}
                                     </div>
                                 </Alert>
+                            ))}
+                        </div>
+                    </Card>
+                )}
+                {pending > 0 && (
+                    <Card title={t('app.setup_title', 'Start selling')} description={t('app.setup_description', 'Finish these steps so customers can place orders.')}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {setupSteps.map((step) => (
+                                <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                                    {step.done ? <CheckCircle2 size={20} color="var(--success-text)" /> : <Circle size={20} color="var(--text-tertiary)" />}
+                                    <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                                        <div style={{ fontWeight: 600, fontSize: 14, color: step.done ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: step.done ? 'line-through' : 'none' }}>{step.title}</div>
+                                        {!step.done && <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{step.description}</div>}
+                                    </div>
+                                    {!step.done && <Button size="sm" variant="outline" href={step.url}>{t('app.setup_open', 'Set up')}</Button>}
+                                </div>
                             ))}
                         </div>
                     </Card>

@@ -12,6 +12,7 @@ export default function Textarea({ label, rows = 4, error, helpText, className, 
             {label && (
                 <label htmlFor={rest.id} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
                     {label}
+                    {rest.required && <span aria-hidden="true" style={{ color: 'var(--danger-text)' }}> *</span>}
                 </label>
             )}
             <textarea

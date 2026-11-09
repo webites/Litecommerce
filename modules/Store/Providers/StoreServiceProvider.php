@@ -20,11 +20,13 @@ use Litecommerce\Modules\Store\Contracts\Events\StoreSettingsChanged;
 use Litecommerce\Modules\Store\Contracts\HtmlContentFilter;
 use Litecommerce\Modules\Store\Contracts\LanguageRepository;
 use Litecommerce\Modules\Store\Contracts\SettingsTabRegistry;
+use Litecommerce\Modules\Store\Contracts\SetupChecklist;
 use Litecommerce\Modules\Store\Contracts\StoreBootstrap;
 use Litecommerce\Modules\Store\Contracts\StoreCacheGroups;
 use Litecommerce\Modules\Store\Contracts\StoreSettingsReader;
 use Litecommerce\Modules\Store\Contracts\StoreSettingsStore;
 use Litecommerce\Modules\Store\Infrastructure\InMemorySettingsTabRegistry;
+use Litecommerce\Modules\Store\Infrastructure\InMemorySetupChecklist;
 use Litecommerce\Modules\Store\Infrastructure\Repositories\EloquentCurrencyRepository;
 use Litecommerce\Modules\Store\Infrastructure\Repositories\EloquentLanguageRepository;
 use Litecommerce\Modules\Store\Infrastructure\Repositories\EloquentStoreSettingsReader;
@@ -46,6 +48,7 @@ final class StoreServiceProvider extends ServiceProvider
         $this->app->singleton(HtmlContentFilter::class, SymfonyHtmlContentFilter::class);
         $this->app->bind(SanitizeStoredHtml::class, fn ($app): SanitizeStoredHtml => new SanitizeStoredHtml($app->make(HtmlContentFilter::class), $app->tagged('store.html_content')));
         $this->app->singleton(SettingsTabRegistry::class, InMemorySettingsTabRegistry::class);
+        $this->app->singleton(SetupChecklist::class, InMemorySetupChecklist::class);
     }
 
     public function boot(): void

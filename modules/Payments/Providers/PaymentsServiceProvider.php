@@ -27,9 +27,11 @@ use Litecommerce\Modules\Payments\Infrastructure\CoreCouponFullCoverageMethod;
 use Litecommerce\Modules\Payments\Infrastructure\CorePayOnPickupMethod;
 use Litecommerce\Modules\Payments\Infrastructure\EloquentPaymentObligationChecker;
 use Litecommerce\Modules\Payments\Infrastructure\InMemoryPaymentMethodRegistry;
+use Litecommerce\Modules\Payments\Infrastructure\Models\BankTransferAccount;
 use Litecommerce\Modules\Payments\Presentation\Controllers\PaymentSettingsController;
 use Litecommerce\Modules\Scheduler\Contracts\ScheduledTaskRegistry;
 use Litecommerce\Modules\Store\Contracts\SettingsTabRegistry;
+use Litecommerce\Modules\Store\Contracts\SetupChecklist;
 
 final class PaymentsServiceProvider extends ServiceProvider
 {
@@ -78,6 +80,17 @@ final class PaymentsServiceProvider extends ServiceProvider
             'store::tabs.payments',
             300,
             [$this->app->make(PaymentSettingsController::class), 'settingsTab'],
+            fn (): bool => auth()->id() !== null && $this->app->make(StaffPermissionChecker::class)->allows((int) auth()->id(), CorePermission::ManageOrders->value),
+        );
+
+        $this->app->make(SetupChecklist::class)->register(
+            'payments',
+            300,
+            'payments::panel.setup_title',
+            'payments::panel.setup_description',
+            '/panel/settings#payments',
+            static fn (): bool => BankTransferAccount::query()->where('enabled', true)->exists()
+                || array_filter($registry->all(), static fn ($descriptor): bool => ! str_starts_with($descriptor->id, 'core.')) !== [],
             fn (): bool => auth()->id() !== null && $this->app->make(StaffPermissionChecker::class)->allows((int) auth()->id(), CorePermission::ManageOrders->value),
         );
     }

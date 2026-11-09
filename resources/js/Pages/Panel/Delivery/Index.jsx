@@ -11,6 +11,7 @@ import PageHeader from '@/Components/ui/PageHeader';
 import Select from '@/Components/ui/Select';
 import Switch from '@/Components/ui/Switch';
 import Table from '@/Components/ui/Table';
+import Textarea from '@/Components/ui/Textarea';
 import SettingsPageFrame from '@/Components/panel/SettingsPageFrame';
 import { useTranslate } from '@/lib/i18n';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
@@ -32,24 +33,176 @@ function summary(method, t) {
     return `${count} ${word}`;
 }
 
-export default function Index({ methods, currencies, tax_rates: taxRates, price_entry_mode: priceEntryMode, countries, plugin_methods: pluginMethods = [], embedded = false }) {
+const emptyPoint = (countries) => ({
+    name: '', country_code: countries.some((c) => c.code === 'PL') ? 'PL' : '', postal_code: '', city: '', region: '',
+    address_line_1: '', address_line_2: '', instructions: {}, active: true,
+});
+
+function hasActivePoint(method) {
+    return method.pickup_points.some((point) => point.active);
+}
+
+function cleanInstructions(instructions) {
+    return Object.fromEntries(Object.entries(instructions ?? {}).filter(([, value]) => typeof value === 'string' && value.trim() !== ''));
+}
+
+function PickupPointFields({ data, setData, errors, prefix = '', languages, countries }) {
     const t = useTranslate();
-    const status = usePage().props.flash?.status;
+    const set = (field, value) => setData(field, value);
+    const error = (field) => errors[`${prefix}${field}`];
+    const multiLanguage = languages.length > 1;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12 }}>
+                <Input
+                    required label={t('delivery.fields.point_name', 'Pickup point name')} value={data.name} error={error('name')}
+                    placeholder={t('delivery.fields.point_name_placeholder', 'e.g. Main store — Wrocław')}
+                    helpText={t('delivery.fields.point_name_help', 'Customers see it at checkout next to the method name.')}
+                    onChange={(e) => set('name', e.target.value)}
+                />
+                <CountryCombobox label={t('delivery.fields.country', 'Country')} countries={countries} value={data.country_code} error={error('country_code')} onChange={(code) => set('country_code', code)} />
+                <Input required label={t('delivery.fields.postal_code', 'Postal code')} value={data.postal_code} error={error('postal_code')} onChange={(e) => set('postal_code', e.target.value)} />
+                <Input required label={t('delivery.fields.city', 'City')} value={data.city} error={error('city')} onChange={(e) => set('city', e.target.value)} />
+                <Input required label={t('delivery.fields.address_line_1', 'Address')} placeholder={t('delivery.fields.address_placeholder', 'Street and number')} value={data.address_line_1} error={error('address_line_1')} onChange={(e) => set('address_line_1', e.target.value)} />
+                <Input label={t('delivery.fields.address_line_2', 'Address (cont.)')} value={data.address_line_2} error={error('address_line_2')} onChange={(e) => set('address_line_2', e.target.value)} />
+            </div>
+            {languages.map((language) => (
+                <Textarea
+                    key={language.code} rows={3}
+                    label={multiLanguage
+                        ? t('delivery.fields.instructions_lang', 'Pickup instructions (:language)', { language: language.name })
+                        : t('delivery.fields.instructions', 'Pickup instructions')}
+                    placeholder={t('delivery.fields.instructions_placeholder', 'e.g. Mon–Fri 10:00–18:00, ring the bell at the side entrance')}
+                    helpText={t('delivery.fields.instructions_help', 'Opening hours and how to collect. Shown at checkout and in the “ready for pickup” e-mail.')}
+                    value={data.instructions?.[language.code] ?? ''}
+                    error={error(`instructions.${language.code}`)}
+                    onChange={(value) => set('instructions', { ...data.instructions, [language.code]: value })}
+                />
+            ))}
+        </div>
+    );
+}
+
+function CreateMethodModal({ taxRates, priceEntryMode, countries, languages, onClose }) {
+    const t = useTranslate();
+    const form = useForm({
+        kind: 'pickup', name: '', active: true, price_amount: '', free_threshold_amount: '', tax_rate_id: '',
+        supports_cash_on_delivery: false, supports_pay_on_pickup: false, pickup_deadline_days: '',
+        pickup_point: emptyPoint(countries),
+    });
+    const isPickup = form.data.kind === 'pickup';
+    const priceModeLabel = priceEntryMode === 'net' ? t('delivery.price_mode_net', 'net') : t('delivery.price_mode_gross', 'gross');
+    const setPoint = (field, value) => form.setData('pickup_point', { ...form.data.pickup_point, [field]: value });
+    const pointErrors = Object.fromEntries(Object.entries(form.errors).map(([key, value]) => [key.replace(/^pickup_point\./, ''), value]));
+
+    const submit = (event) => {
+        event.preventDefault();
+        form.transform((data) => ({
+            ...data,
+            pickup_point: data.kind === 'pickup' ? { ...data.pickup_point, instructions: cleanInstructions(data.pickup_point.instructions) } : undefined,
+        }));
+        form.post(route('panel.delivery.store'), { preserveScroll: true, onSuccess: onClose });
+    };
+
+    const kinds = [
+        { value: 'pickup', title: t('delivery.kind_labels.pickup', 'Local pickup'), text: t('delivery.kind_help.pickup', 'Customers collect the order at your shop or another place you define.') },
+        { value: 'flat_rate', title: t('delivery.kind_labels.flat_rate', 'Courier / own rate'), text: t('delivery.kind_help.flat_rate', 'You ship the order; the price depends on the destination country or continent.') },
+    ];
+
+    return (
+        <Modal show title={t('delivery.add_method', 'Add method')} onClose={onClose} maxWidth={760}>
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12 }}>
+                    {kinds.map((kind) => {
+                        const selected = form.data.kind === kind.value;
+
+                        return (
+                            <button
+                                key={kind.value} type="button" aria-pressed={selected} onClick={() => form.setData('kind', kind.value)}
+                                style={{
+                                    textAlign: 'left', padding: 14, cursor: 'pointer', borderRadius: 'var(--radius-card)', font: 'inherit',
+                                    border: `2px solid ${selected ? 'var(--brand-solid)' : 'var(--border-subtle)'}`,
+                                    background: selected ? 'var(--brand-subtle-bg)' : 'var(--bg-surface)', color: 'var(--text-primary)',
+                                }}
+                            >
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{kind.title}</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{kind.text}</div>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12 }}>
+                    <Input
+                        required label={t('delivery.fields.method_name', 'Method name')} value={form.data.name} error={form.errors.name}
+                        placeholder={isPickup ? t('delivery.fields.method_name_placeholder_pickup', 'e.g. Local pickup') : t('delivery.fields.method_name_placeholder_courier', 'e.g. Courier')}
+                        helpText={t('delivery.fields.method_name_help', 'What customers see at checkout.')}
+                        onChange={(e) => form.setData('name', e.target.value)}
+                    />
+                    <Select
+                        label={t('delivery.fields.tax_rate', 'VAT rate')} placeholder={t('delivery.fields.tax_rate_placeholder', 'Not assigned (0%)')} value={form.data.tax_rate_id} error={form.errors.tax_rate_id}
+                        options={taxRates.map((r) => ({ value: r.id, label: r.name }))}
+                        onChange={(e) => form.setData('tax_rate_id', e.target.value)}
+                    />
+                    {isPickup ? (
+                        <>
+                            <Input
+                                label={t('delivery.fields.price_with_mode', 'Price (:mode)', { mode: priceModeLabel })} placeholder={t('delivery.fields.price_placeholder_free', '0 = free')}
+                                value={form.data.price_amount} error={form.errors.price_amount}
+                                onChange={(e) => form.setData('price_amount', e.target.value)}
+                            />
+                            <Input
+                                type="number" min="1" max="365" label={t('delivery.fields.pickup_deadline_days', 'Pickup deadline (days)')} placeholder={t('delivery.fields.pickup_deadline_placeholder', 'No deadline')}
+                                helpText={t('delivery.fields.pickup_deadline_help', 'After this time the order is treated as not collected.')}
+                                value={form.data.pickup_deadline_days} error={form.errors.pickup_deadline_days}
+                                onChange={(e) => form.setData('pickup_deadline_days', e.target.value)}
+                            />
+                        </>
+                    ) : (
+                        <Input
+                            label={t('delivery.fields.free_threshold', 'Free shipping threshold')} placeholder={t('delivery.fields.free_threshold_placeholder_none', 'No threshold')}
+                            helpText={t('delivery.fields.free_threshold_help', 'Orders above this amount ship for free.')}
+                            value={form.data.free_threshold_amount} error={form.errors.free_threshold_amount}
+                            onChange={(e) => form.setData('free_threshold_amount', e.target.value)}
+                        />
+                    )}
+                </div>
+
+                {isPickup ? (
+                    <Checkbox label={t('delivery.fields.supports_pay_on_pickup', 'Customer can pay on pickup')} checked={form.data.supports_pay_on_pickup} onChange={(v) => form.setData('supports_pay_on_pickup', v)} />
+                ) : (
+                    <Checkbox label={t('delivery.fields.supports_cod', 'Accepts cash on delivery (COD)')} checked={form.data.supports_cash_on_delivery} onChange={(v) => form.setData('supports_cash_on_delivery', v)} />
+                )}
+
+                {isPickup && (
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{t('delivery.first_point_title', 'First pickup point')}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '4px 0 12px' }}>{t('delivery.first_point_hint', 'A pickup method is visible to customers only when it has at least one active pickup point.')}</div>
+                        <PickupPointFields data={form.data.pickup_point} setData={setPoint} errors={pointErrors} languages={languages} countries={countries} />
+                    </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <Button type="submit" loading={form.processing}>{t('delivery.add_method', 'Add method')}</Button>
+                    <Button type="button" variant="ghost" onClick={onClose}>{t('delivery.cancel', 'Cancel')}</Button>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
+export default function Index({ methods, currencies, tax_rates: taxRates, price_entry_mode: priceEntryMode, countries, languages = [], plugin_methods: pluginMethods = [], embedded = false }) {
+    const t = useTranslate();
+    const { flash, errors } = usePage().props;
+    const status = flash?.status;
     const [editingId, setEditingId] = useState(null);
+    const [creating, setCreating] = useState(false);
     const editing = methods.find((m) => m.id === editingId) || null;
 
     const kindLabels = {
-        flat_rate: t('delivery.kind_labels.flat_rate', 'Merchant rate'),
+        flat_rate: t('delivery.kind_labels.flat_rate', 'Courier / own rate'),
         pickup: t('delivery.kind_labels.pickup', 'Local pickup'),
-    };
-
-    const createForm = useForm({
-        kind: 'flat_rate', name: '', active: true, price_amount: '', free_threshold_amount: '',
-        tax_rate_id: '', supports_cash_on_delivery: false, supports_pay_on_pickup: false, pickup_deadline_days: '',
-    });
-    const submitCreate = (event) => {
-        event.preventDefault();
-        createForm.post(route('panel.delivery.store'), { preserveScroll: true, onSuccess: () => createForm.reset() });
     };
 
     const toggleActive = (method) => {
@@ -68,18 +221,33 @@ export default function Index({ methods, currencies, tax_rates: taxRates, price_
 
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 800 }}>
                 {status && <Alert tone="success">{status}</Alert>}
+                {errors?.active && <Alert tone="warning">{errors.active}</Alert>}
 
-                <Card title={t('delivery.methods_card_title', 'Delivery methods')} description={t('delivery.methods_card_description', "Regional prices and free-shipping thresholds are calculated in the store's base currency, with optional per-currency overrides in the method editor.")}>
+                <Card
+                    title={t('delivery.methods_card_title', 'Delivery methods')}
+                    description={t('delivery.methods_card_description', "Regional prices and free-shipping thresholds are calculated in the store's base currency, with optional per-currency overrides in the method editor.")}
+                    action={<Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => setCreating(true)}>{t('delivery.add_method', 'Add method')}</Button>}
+                >
                     {methods.length === 0 ? (
-                        <EmptyState icon={Truck} title={t('delivery.empty_title', 'No delivery methods')} description={t('delivery.empty_description', 'Add your first method below.')} />
+                        <EmptyState
+                            icon={Truck} title={t('delivery.empty_title', 'No delivery methods')}
+                            description={t('delivery.empty_description', 'Without a delivery method customers cannot check out physical products. Add local pickup or a courier method.')}
+                            action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreating(true)}>{t('delivery.add_method', 'Add method')}</Button>}
+                        />
                     ) : (
                         <Table
                             columns={[
-                                { header: t('delivery.column_name', 'Name'), render: (m) => <strong>{m.name}</strong> },
+                                {
+                                    header: t('delivery.column_name', 'Name'),
+                                    render: (m) => (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                            <strong>{m.name}</strong>
+                                            {m.kind === 'pickup' && !hasActivePoint(m) && <Badge tone="warning">{t('delivery.hidden_no_point', 'Hidden from customers: add a pickup point')}</Badge>}
+                                        </div>
+                                    ),
+                                },
                                 { header: t('delivery.column_kind', 'Kind'), render: (m) => <Badge tone="brand">{kindLabels[m.kind] ?? m.kind}</Badge> },
                                 { header: t('delivery.column_price_regions', 'Price / regions'), render: (m) => summary(m, t) },
-                                { header: t('delivery.column_free_threshold', 'Free shipping threshold'), render: (m) => m.free_threshold_amount ?? '—' },
-                                { header: t('delivery.column_cod', 'COD'), render: (m) => (m.supports_cash_on_delivery ? <Badge tone="success">{t('delivery.yes', 'Yes')}</Badge> : '—') },
                                 { header: t('delivery.column_active_method', 'Active'), render: (m) => <Switch checked={m.active} onChange={() => toggleActive(m)} /> },
                                 {
                                     header: '', align: 'right',
@@ -94,52 +262,6 @@ export default function Index({ methods, currencies, tax_rates: taxRates, price_
                             rows={methods}
                         />
                     )}
-
-                    <form onSubmit={submitCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12, borderTop: '1px solid var(--border-subtle)', marginTop: 16, paddingTop: 16 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{t('delivery.add_method', 'Add method')}</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12 }}>
-                            <Select
-                                label={t('delivery.fields.kind', 'Kind')} value={createForm.data.kind} error={createForm.errors.kind}
-                                options={[
-                                    { value: 'flat_rate', label: t('delivery.kind_labels.flat_rate', 'Merchant rate') },
-                                    { value: 'pickup', label: t('delivery.kind_labels.pickup', 'Local pickup') },
-                                ]}
-                                onChange={(e) => createForm.setData('kind', e.target.value)}
-                            />
-                            <Input label={t('delivery.fields.name', 'Name')} value={createForm.data.name} error={createForm.errors.name} onChange={(e) => createForm.setData('name', e.target.value)} />
-                            <Select
-                                label={t('delivery.fields.tax_rate', 'VAT rate')} placeholder={t('delivery.fields.tax_rate_placeholder', 'Not assigned (0%)')} value={createForm.data.tax_rate_id} error={createForm.errors.tax_rate_id}
-                                options={taxRates.map((r) => ({ value: r.id, label: r.name }))}
-                                onChange={(e) => createForm.setData('tax_rate_id', e.target.value)}
-                            />
-                            {createForm.data.kind === 'pickup' && (
-                                <Input
-                                    label={t('delivery.fields.price_with_mode', 'Price (:mode)', { mode: priceEntryMode === 'net' ? t('delivery.price_mode_net', 'net') : t('delivery.price_mode_gross', 'gross') })} placeholder={t('delivery.fields.price_placeholder_free', '0 = free')}
-                                    value={createForm.data.price_amount} error={createForm.errors.price_amount}
-                                    onChange={(e) => createForm.setData('price_amount', e.target.value)}
-                                />
-                            )}
-                            {createForm.data.kind === 'pickup' && (
-                                <Input
-                                    type="number" min="1" max="365" label={t('delivery.fields.pickup_deadline_days', 'Pickup deadline (days)')} placeholder={t('delivery.fields.pickup_deadline_placeholder', 'No deadline')}
-                                    value={createForm.data.pickup_deadline_days} error={createForm.errors.pickup_deadline_days}
-                                    onChange={(e) => createForm.setData('pickup_deadline_days', e.target.value)}
-                                />
-                            )}
-                            <Input
-                                label={t('delivery.fields.free_threshold', 'Free shipping threshold')} placeholder={t('delivery.fields.free_threshold_placeholder_none', 'No threshold')}
-                                value={createForm.data.free_threshold_amount} error={createForm.errors.free_threshold_amount}
-                                onChange={(e) => createForm.setData('free_threshold_amount', e.target.value)}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', gap: 20 }}>
-                            <Checkbox label={t('delivery.fields.supports_cod', 'Accepts cash on delivery (COD)')} checked={createForm.data.supports_cash_on_delivery} onChange={(v) => createForm.setData('supports_cash_on_delivery', v)} />
-                            {createForm.data.kind === 'pickup' && (
-                                <Checkbox label={t('delivery.fields.supports_pay_on_pickup', 'Accepts pay on pickup')} checked={createForm.data.supports_pay_on_pickup} onChange={(v) => createForm.setData('supports_pay_on_pickup', v)} />
-                            )}
-                        </div>
-                        <div><Button type="submit" variant="outline" icon={<Plus size={14} />} loading={createForm.processing}>{t('delivery.add_method', 'Add method')}</Button></div>
-                    </form>
                 </Card>
 
                 {pluginMethods.length > 0 && (
@@ -156,9 +278,13 @@ export default function Index({ methods, currencies, tax_rates: taxRates, price_
                 )}
             </div>
 
+            {creating && (
+                <CreateMethodModal taxRates={taxRates} priceEntryMode={priceEntryMode} countries={countries} languages={languages} onClose={() => setCreating(false)} />
+            )}
+
             {editing && (
                 <DeliveryMethodModal
-                    method={editing} currencies={currencies} taxRates={taxRates} priceEntryMode={priceEntryMode} countries={countries}
+                    method={editing} currencies={currencies} taxRates={taxRates} priceEntryMode={priceEntryMode} countries={countries} languages={languages}
                     onClose={() => setEditingId(null)}
                 />
             )}
@@ -213,7 +339,7 @@ function PluginMethodSettings({ method, taxRates }) {
     );
 }
 
-function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, countries, onClose }) {
+function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, countries, languages, onClose }) {
     const t = useTranslate();
     const nonBaseCurrencies = currencies.filter((c) => !c.is_base);
 
@@ -266,9 +392,7 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
         regionForm.put(route('panel.delivery.region-rules.update', method.id), { preserveScroll: true, preserveState: true });
     };
 
-    const pointForm = useForm({
-        name: '', country_code: '', postal_code: '', city: '', region: '', address_line_1: '', address_line_2: '', active: true,
-    });
+    const pointForm = useForm(emptyPoint(countries));
     const [editingPointId, setEditingPointId] = useState(null);
     const startEditPoint = (point) => {
         setEditingPointId(point.id);
@@ -276,14 +400,17 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
         pointForm.setData({
             name: point.name, country_code: point.country_code, postal_code: point.postal_code, city: point.city,
             region: point.region ?? '', address_line_1: point.address_line_1, address_line_2: point.address_line_2 ?? '', active: point.active,
+            instructions: Array.isArray(point.instructions) ? {} : (point.instructions ?? {}),
         });
     };
     const cancelEditPoint = () => {
         setEditingPointId(null);
-        pointForm.reset();
+        pointForm.setData(emptyPoint(countries));
+        pointForm.clearErrors();
     };
     const submitPoint = (event) => {
         event.preventDefault();
+        pointForm.transform((data) => ({ ...data, instructions: cleanInstructions(data.instructions) }));
         if (editingPointId) {
             pointForm.put(route('panel.delivery.pickup-points.update', [method.id, editingPointId]), { preserveScroll: true, onSuccess: cancelEditPoint });
         } else {
@@ -299,9 +426,14 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
     return (
         <Modal show title={t('delivery.modal_edit_title', 'Editing: :name', { name: method.name })} onClose={onClose} maxWidth={760}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {method.kind === 'pickup' && !hasActivePoint(method) && (
+                    <Alert tone="warning" title={t('delivery.no_point_title', 'Customers cannot see this method yet')}>
+                        {t('delivery.no_point_text', 'A pickup method appears at checkout only when it has at least one active pickup point. Add one in the “Pickup points” section below.')}
+                    </Alert>
+                )}
                 <form onSubmit={saveBasics} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12 }}>
-                        <Input label={t('delivery.fields.name', 'Name')} value={basicsForm.data.name} error={basicsForm.errors.name} onChange={(e) => basicsForm.setData('name', e.target.value)} />
+                        <Input required label={t('delivery.fields.method_name', 'Method name')} helpText={t('delivery.fields.method_name_help', 'What customers see at checkout.')} value={basicsForm.data.name} error={basicsForm.errors.name} onChange={(e) => basicsForm.setData('name', e.target.value)} />
                         <Select
                             label={t('delivery.fields.tax_rate', 'VAT rate')} placeholder={t('delivery.fields.tax_rate_placeholder', 'Not assigned (0%)')} value={basicsForm.data.tax_rate_id} error={basicsForm.errors.tax_rate_id}
                             options={taxRates.map((r) => ({ value: r.id, label: r.name }))}
@@ -309,7 +441,7 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
                         />
                         {method.kind === 'pickup' && (
                             <Input
-                                label={t('delivery.fields.price_with_mode', 'Price (:mode)', { mode: priceModeLabel })}
+                                label={t('delivery.fields.price_with_mode', 'Price (:mode)', { mode: priceModeLabel })} placeholder={t('delivery.fields.price_placeholder_free', '0 = free')}
                                 value={basicsForm.data.price_amount} error={basicsForm.errors.price_amount}
                                 onChange={(e) => basicsForm.setData('price_amount', e.target.value)}
                             />
@@ -321,19 +453,25 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
                                 onChange={(e) => basicsForm.setData('pickup_deadline_days', e.target.value)}
                             />
                         )}
-                        <Input
-                            label={t('delivery.fields.free_threshold', 'Free shipping threshold')} placeholder={t('delivery.fields.free_threshold_placeholder_none', 'No threshold')}
-                            value={basicsForm.data.free_threshold_amount} error={basicsForm.errors.free_threshold_amount}
-                            onChange={(e) => basicsForm.setData('free_threshold_amount', e.target.value)}
-                        />
+                        {method.kind === 'flat_rate' && (
+                            <Input
+                                label={t('delivery.fields.free_threshold', 'Free shipping threshold')} placeholder={t('delivery.fields.free_threshold_placeholder_none', 'No threshold')}
+                                helpText={t('delivery.fields.free_threshold_help', 'Orders above this amount ship for free.')}
+                                value={basicsForm.data.free_threshold_amount} error={basicsForm.errors.free_threshold_amount}
+                                onChange={(e) => basicsForm.setData('free_threshold_amount', e.target.value)}
+                            />
+                        )}
                     </div>
                     <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                         <Switch label={t('delivery.column_active_method', 'Active')} checked={basicsForm.data.active} onChange={(v) => basicsForm.setData('active', v)} />
-                        <Checkbox label={t('delivery.fields.supports_cod', 'Accepts cash on delivery (COD)')} checked={basicsForm.data.supports_cash_on_delivery} onChange={(v) => basicsForm.setData('supports_cash_on_delivery', v)} />
+                        {method.kind === 'flat_rate' && (
+                            <Checkbox label={t('delivery.fields.supports_cod', 'Accepts cash on delivery (COD)')} checked={basicsForm.data.supports_cash_on_delivery} onChange={(v) => basicsForm.setData('supports_cash_on_delivery', v)} />
+                        )}
                         {method.kind === 'pickup' && (
-                            <Checkbox label={t('delivery.fields.supports_pay_on_pickup', 'Accepts pay on pickup')} checked={basicsForm.data.supports_pay_on_pickup} onChange={(v) => basicsForm.setData('supports_pay_on_pickup', v)} />
+                            <Checkbox label={t('delivery.fields.supports_pay_on_pickup', 'Customer can pay on pickup')} checked={basicsForm.data.supports_pay_on_pickup} onChange={(v) => basicsForm.setData('supports_pay_on_pickup', v)} />
                         )}
                     </div>
+                    {basicsForm.errors.active && <Alert tone="warning">{basicsForm.errors.active}</Alert>}
                     <div><Button type="submit" loading={basicsForm.processing}>{t('delivery.save', 'Save')}</Button></div>
                 </form>
 
@@ -406,11 +544,14 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
                 {method.kind === 'pickup' && (
                     <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>{t('delivery.pickup_points_title', 'Pickup points')}</div>
+                        {method.pickup_points.length === 0 && (
+                            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>{t('delivery.no_points_yet', 'No pickup points yet. Fill in the form below to add the first one.')}</div>
+                        )}
                         {method.pickup_points.length > 0 && (
                             <Table
                                 columns={[
-                                    { header: t('delivery.fields.name', 'Name'), key: 'name' },
-                                    { header: t('delivery.column_city', 'City'), render: (p) => `${p.postal_code} ${p.city}` },
+                                    { header: t('delivery.fields.point_name', 'Pickup point name'), key: 'name' },
+                                    { header: t('delivery.column_address', 'Address'), render: (p) => `${p.address_line_1}, ${p.postal_code} ${p.city}` },
                                     { header: t('delivery.column_active_point', 'Active'), render: (p) => (p.active ? <Badge tone="success">{t('delivery.yes', 'Yes')}</Badge> : <Badge>{t('delivery.no', 'No')}</Badge>) },
                                     {
                                         header: '', align: 'right',
@@ -427,14 +568,7 @@ function DeliveryMethodModal({ method, currencies, taxRates, priceEntryMode, cou
                         )}
                         <form onSubmit={submitPoint} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
                             <div style={{ fontSize: 13, fontWeight: 600 }}>{editingPointId ? t('delivery.point_form_title_edit', 'Editing point') : t('delivery.point_form_title_new', 'New pickup point')}</div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12 }}>
-                                <Input label={t('delivery.fields.name', 'Name')} value={pointForm.data.name} error={pointForm.errors.name} onChange={(e) => pointForm.setData('name', e.target.value)} />
-                                <CountryCombobox label={t('delivery.fields.country', 'Country')} countries={countries} value={pointForm.data.country_code} error={pointForm.errors.country_code} onChange={(code) => pointForm.setData('country_code', code)} />
-                                <Input label={t('delivery.fields.postal_code', 'Postal code')} value={pointForm.data.postal_code} error={pointForm.errors.postal_code} onChange={(e) => pointForm.setData('postal_code', e.target.value)} />
-                                <Input label={t('delivery.fields.city', 'City')} value={pointForm.data.city} error={pointForm.errors.city} onChange={(e) => pointForm.setData('city', e.target.value)} />
-                                <Input label={t('delivery.fields.address_line_1', 'Address')} value={pointForm.data.address_line_1} error={pointForm.errors.address_line_1} onChange={(e) => pointForm.setData('address_line_1', e.target.value)} />
-                                <Input label={t('delivery.fields.address_line_2', 'Address (cont.)')} value={pointForm.data.address_line_2} error={pointForm.errors.address_line_2} onChange={(e) => pointForm.setData('address_line_2', e.target.value)} />
-                            </div>
+                            <PickupPointFields data={pointForm.data} setData={pointForm.setData} errors={pointForm.errors} languages={languages} countries={countries} />
                             <Switch label={t('delivery.column_active_point', 'Active')} checked={pointForm.data.active} onChange={(v) => pointForm.setData('active', v)} />
                             <div style={{ display: 'flex', gap: 8 }}>
                                 <Button type="submit" loading={pointForm.processing}>{editingPointId ? t('delivery.point_save', 'Save point') : t('delivery.point_add', 'Add point')}</Button>

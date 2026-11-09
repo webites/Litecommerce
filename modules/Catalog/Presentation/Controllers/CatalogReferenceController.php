@@ -76,42 +76,6 @@ final class CatalogReferenceController extends Controller
                         'image_url' => $image?->url,
                     ];
                 })->all(),
-            'attributeTypes' => array_map(static fn (AttributeType $type): array => [
-                'value' => $type->value,
-                'label' => match ($type) {
-                    AttributeType::Text => trans('catalog::labels.attribute_type_text'),
-                    AttributeType::Number => trans('catalog::labels.attribute_type_number'),
-                    AttributeType::Boolean => trans('catalog::labels.attribute_type_boolean'),
-                    AttributeType::SingleSelect => trans('catalog::labels.attribute_type_single_select'),
-                    AttributeType::MultiSelect => trans('catalog::labels.attribute_type_multi_select'),
-                    AttributeType::Color => trans('catalog::labels.attribute_type_color'),
-                },
-            ], AttributeType::cases()),
-            'attributes' => AttributeDefinition::query()
-                ->with([
-                    'translations' => fn ($query) => $query->where('locale', $locale),
-                    'values.translations' => fn ($query) => $query->where('locale', $locale),
-                ])->orderBy('key')->get()->map(static function (AttributeDefinition $definition): array {
-                    $translation = $definition->translations->first();
-
-                    return [
-                        'id' => (int) $definition->getKey(),
-                        'key' => $definition->key,
-                        'name' => $translation === null ? $definition->key : $translation->name,
-                        'type' => $definition->type,
-                        'is_filterable' => $definition->is_filterable,
-                        'values' => $definition->values->map(static function (AttributeValue $value): array {
-                            $translation = $value->translations->first();
-
-                            return [
-                                'id' => (int) $value->getKey(),
-                                'key' => $value->value_key,
-                                'name' => $translation === null ? $value->value_key : $translation->name,
-                                'color_hex' => $value->color_hex,
-                            ];
-                        })->values()->all(),
-                    ];
-                })->values()->all(),
         ]);
     }
 
@@ -314,13 +278,15 @@ final class CatalogReferenceController extends Controller
 
     public function storeAttribute(Request $request, AuditLogger $audit, SlugGenerator $slugGenerator): RedirectResponse
     {
-        /** @var array{locale:string,key:string,name:string,type:string,is_filterable:bool} $data */
+        /** @var array{locale:string,key:string,name:string,type:string,is_filterable:bool,attribute_group_id?:int|null,visible_on_product?:bool} $data */
         $data = $request->validate([
             'locale' => ['required', 'string', 'exists:languages,code'],
             'key' => ['required', 'string', 'max:96', 'regex:/^[a-z][a-z0-9_]*$/', 'unique:attribute_definitions,key'],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(AttributeType::class)],
             'is_filterable' => ['required', 'boolean'],
+            'attribute_group_id' => ['nullable', 'integer', 'exists:attribute_groups,id'],
+            'visible_on_product' => ['sometimes', 'boolean'],
         ]);
 
         $definition = DB::transaction(function () use ($data, $slugGenerator): AttributeDefinition {
@@ -328,6 +294,9 @@ final class CatalogReferenceController extends Controller
                 'key' => $data['key'],
                 'type' => $data['type'],
                 'is_filterable' => $data['is_filterable'],
+                'attribute_group_id' => $data['attribute_group_id'] ?? null,
+                'visible_on_product' => $data['visible_on_product'] ?? true,
+                'position' => (int) AttributeDefinition::query()->max('position') + 1,
             ]);
             $name = trim($data['name']);
             AttributeDefinitionTranslation::query()->create([

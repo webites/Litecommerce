@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Catalog\Infrastructure\Repositories;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Litecommerce\Modules\Catalog\Contracts\ProductStatus;
 use Litecommerce\Modules\Catalog\Contracts\SearchDocumentAttributeData;
 use Litecommerce\Modules\Catalog\Contracts\SearchDocumentData;
@@ -220,13 +221,17 @@ final class EloquentSearchDocumentSource implements SearchDocumentSource
     {
         $result = [];
         foreach ($rows as $row) {
-            $valueKey = $row->value_key ?? $row->text_value ?? $row->number_value;
-            $valueName = $row->value_name ?? $row->text_value ?? $row->number_value;
+            $valueKey = $row->value_key;
+            $valueName = $row->value_name;
+            if ($valueKey === null && ($row->text_value !== null || $row->number_value !== null)) {
+                $valueName = $row->text_value ?? rtrim(rtrim((string) $row->number_value, '0'), '.');
+                $valueKey = Str::slug((string) $valueName) ?: (string) $valueName;
+            }
             if ($valueKey === null && $row->boolean_value !== null) {
                 $valueKey = $row->boolean_value ? '1' : '0';
-                $valueName = $valueKey;
+                $valueName = trans($row->boolean_value ? 'catalog::product.yes' : 'catalog::product.no', [], $row->locale);
             }
-            if ($valueKey === null) {
+            if ($valueKey === null || trim((string) $valueName) === '') {
                 continue;
             }
             $result[(int) $row->{$ownerColumn}][(string) $row->locale][(string) $row->key][] = [

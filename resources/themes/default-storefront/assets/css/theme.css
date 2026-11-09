@@ -645,6 +645,7 @@ fieldset legend { font-weight: 700; font-size: 13px; color: var(--ink); padding:
 .spec-table th, .spec-table td { padding: 10px 0; border-bottom: 1px solid var(--border); text-align: left; }
 .spec-table th { width: 160px; color: var(--ink-muted); font-weight: 600; }
 .spec-table td { font-family: var(--font-mono); }
+.spec-group { margin: 20px 0 6px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
 
 .plugin-slot {
     margin-top: 24px;
@@ -822,6 +823,7 @@ fieldset legend { font-weight: 700; font-size: 13px; color: var(--ink); padding:
 .radio-dot { width: 18px; height: 18px; border-radius: 999px; border: 2px solid var(--border); flex-shrink: 0; transition: border-color .12s ease, background .12s ease; }
 .radio-card:has(input:checked) .radio-dot { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 40%, transparent 42%); }
 .radio-card .price { font-family: var(--font-mono); font-weight: 600; }
+.radio-detail { display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-muted); }
 
 @media (max-width: 860px) {
     .layout-2col { grid-template-columns: 1fr; }

@@ -92,7 +92,7 @@ final class PriceCheckoutDraft
         $result = $this->coupons->allocateToDelivery($couponOutcomes, $quote->grossAmount, $currencyCode);
 
         if (! Decimal::isPositive($result->totalDiscount)) {
-            return new PricedDelivery($options, $draft->delivery_method_id, $draft->delivery_pickup_point_id, $quote, '0', $quote->netAmount, $quote->vatAmount, $quote->grossAmount);
+            return new PricedDelivery($options, $draft->delivery_method_id, $this->pickupPointId($quote, $draft->delivery_pickup_point_id), $quote, '0', $quote->netAmount, $quote->vatAmount, $quote->grossAmount);
         }
 
         $currency = $this->currencies->find($currencyCode);
@@ -103,9 +103,25 @@ final class PriceCheckoutDraft
         $newNet = Decimal::roundHalfUp(Decimal::sub($newGross, $newVat), $decimals);
 
         return new PricedDelivery(
-            $options, $draft->delivery_method_id, $draft->delivery_pickup_point_id, $quote,
+            $options, $draft->delivery_method_id, $this->pickupPointId($quote, $draft->delivery_pickup_point_id), $quote,
             $result->totalDiscount, $newNet, $newVat, $newGross, $result->entries,
         );
+    }
+
+    /** A pickup method with a single point needs no choice: that point is used when the customer has not (or wrongly) picked one. */
+    private function pickupPointId(DeliveryOptionQuote $quote, ?int $chosenId): ?int
+    {
+        if ($quote->kind !== 'pickup') {
+            return $chosenId;
+        }
+
+        foreach ($quote->pickupPoints as $point) {
+            if ($point->id === $chosenId) {
+                return $chosenId;
+            }
+        }
+
+        return count($quote->pickupPoints) === 1 ? $quote->pickupPoints[0]->id : $chosenId;
     }
 
     public function hash(PricedCart $priced): string

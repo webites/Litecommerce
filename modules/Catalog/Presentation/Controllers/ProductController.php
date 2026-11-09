@@ -31,6 +31,7 @@ use Litecommerce\Modules\Catalog\Contracts\ProductTypeRegistry;
 use Litecommerce\Modules\Catalog\Contracts\ProductUnit;
 use Litecommerce\Modules\Catalog\Contracts\VariantSeoMode;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\AttributeDefinition;
+use Litecommerce\Modules\Catalog\Infrastructure\Models\AttributeGroup;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\AttributeValue;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\Brand;
 use Litecommerce\Modules\Catalog\Infrastructure\Models\Category;
@@ -138,7 +139,7 @@ final class ProductController extends Controller
         $attributeDefinitions = AttributeDefinition::query()->with([
             'translations' => fn ($query) => $query->where('locale', $locale),
             'values.translations' => fn ($query) => $query->where('locale', $locale),
-        ])->orderBy('key')->get()->map(static function (AttributeDefinition $definition) use ($attributeRows): array {
+        ])->orderBy('position')->orderBy('key')->get()->map(static function (AttributeDefinition $definition) use ($attributeRows): array {
             $translation = $definition->translations->first();
             $rows = $attributeRows->get($definition->getKey(), collect());
             $first = $rows->first();
@@ -147,6 +148,7 @@ final class ProductController extends Controller
                 'attribute_definition_id' => (int) $definition->getKey(),
                 'name' => $translation === null ? $definition->key : $translation->name,
                 'type' => $definition->type,
+                'group_id' => $definition->attribute_group_id,
                 'assigned' => $rows->isNotEmpty(),
                 'value_ids' => $rows->pluck('attribute_value_id')->filter()->map(static fn (mixed $id): int => (int) $id)->values()->all(),
                 'text_value' => $first === null || $first->text_value === null ? '' : (string) $first->text_value,
@@ -795,6 +797,13 @@ final class ProductController extends Controller
                         })->values()->all(),
                     ];
                 })->values()->all(),
+            'attributeGroups' => AttributeGroup::query()
+                ->with(['translations' => fn ($query) => $query->where('locale', $this->defaultLocale($languages))])
+                ->orderBy('position')->orderBy('id')->get()
+                ->map(static fn (AttributeGroup $group): array => [
+                    'id' => (int) $group->getKey(),
+                    'name' => $group->translations->first()->name ?? $group->key,
+                ])->values()->all(),
             'maxVariants' => (int) config('catalog.max_variants_per_product', 100),
         ];
     }

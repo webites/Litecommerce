@@ -136,7 +136,9 @@ final class CheckoutDeliveryTest extends TestCase
     public function test_pickup_requires_choosing_a_pickup_point(): void
     {
         $methodId = DB::table('delivery_methods')->insertGetId(['kind' => 'pickup', 'name' => 'Odbiór', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        DB::table('delivery_pickup_points')->insert(['delivery_method_id' => $methodId, 'name' => 'Sklep', 'country_code' => 'PL', 'postal_code' => '00-001', 'city' => 'Warszawa', 'address_line_1' => 'Testowa 1', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        foreach (['Sklep A', 'Sklep B'] as $name) {
+            DB::table('delivery_pickup_points')->insert(['delivery_method_id' => $methodId, 'name' => $name, 'country_code' => 'PL', 'postal_code' => '00-001', 'city' => 'Warszawa', 'address_line_1' => 'Testowa 1', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        }
 
         $variantId = $this->createPhysicalVariant();
         $draftId = $this->createDraft($variantId);
@@ -150,6 +152,25 @@ final class CheckoutDeliveryTest extends TestCase
 
         $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $hash])
             ->assertStatus(422)->assertJsonPath('code', 'pickup_point_required');
+    }
+
+    public function test_pickup_with_a_single_point_uses_it_without_an_explicit_choice(): void
+    {
+        $methodId = DB::table('delivery_methods')->insertGetId(['kind' => 'pickup', 'name' => 'Odbiór', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $pointId = DB::table('delivery_pickup_points')->insertGetId(['delivery_method_id' => $methodId, 'name' => 'Sklep', 'country_code' => 'PL', 'postal_code' => '00-001', 'city' => 'Warszawa', 'address_line_1' => 'Testowa 1', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
+
+        $variantId = $this->createPhysicalVariant();
+        $draftId = $this->createDraft($variantId);
+
+        $this->putJson("/checkout/{$draftId}", [
+            'buyer_type' => 'person', 'email' => 'guest@example.com',
+            'billing_address' => $this->plAddress, 'ships_to_different_address' => false,
+            'delivery_method_id' => 'core.'.$methodId,
+        ])->assertOk();
+        $hash = $this->getJson("/checkout/{$draftId}")->json('price.hash');
+
+        $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $hash])->assertOk();
+        $this->assertSame($pointId, (int) DB::table('order_deliveries')->latest('id')->value('pickup_point_id'));
     }
 
     public function test_cash_on_delivery_is_rejected_unless_the_selected_delivery_supports_it(): void

@@ -25,6 +25,7 @@ final readonly class ProductViewData
      * @param  list<?string>  $imageSrcsets  positionally parallel to $imageUrls
      * @param  list<?int>  $imageWidths  positionally parallel to $imageUrls
      * @param  list<?int>  $imageHeights  positionally parallel to $imageUrls
+     * @param  list<ProductSpecificationGroupData>  $specification  descriptive attributes marked visible on the product page, grouped and ordered
      */
     public function __construct(
         public int $id,
@@ -44,5 +45,6 @@ final readonly class ProductViewData
         public array $imageSrcsets = [],
         public array $imageWidths = [],
         public array $imageHeights = [],
+        public array $specification = [],
     ) {}
 }

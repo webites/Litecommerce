@@ -88,22 +88,51 @@ final class DeliveryPanelTest extends TestCase
         $this->assertDatabaseHas('delivery_methods', ['kind' => 'flat_rate', 'supports_pay_on_pickup' => false]);
     }
 
-    public function test_administrator_can_create_a_pickup_method_with_a_pickup_point(): void
+    private const FIRST_POINT = [
+        'name' => 'Sklep centralny', 'country_code' => 'PL', 'postal_code' => '00-001',
+        'city' => 'Warszawa', 'address_line_1' => 'Testowa 1', 'active' => true,
+        'instructions' => ['pl' => 'Pon.–pt. 10–18'],
+    ];
+
+    public function test_administrator_creates_a_pickup_method_together_with_its_first_point(): void
     {
         $staff = StaffAccount::factory()->create();
 
         $this->actingAs($staff)->post(route('panel.delivery.store'), [
             'kind' => 'pickup', 'name' => 'Odbiór osobisty', 'active' => true, 'price_amount' => '0',
             'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => true,
+            'pickup_point' => self::FIRST_POINT,
         ])->assertSessionHasNoErrors();
+
         $methodId = (int) DB::table('delivery_methods')->value('id');
-
-        $this->actingAs($staff)->post(route('panel.delivery.pickup-points.store', $methodId), [
-            'name' => 'Sklep centralny', 'country_code' => 'PL', 'postal_code' => '00-001',
-            'city' => 'Warszawa', 'address_line_1' => 'Testowa 1', 'active' => true,
-        ])->assertSessionHasNoErrors();
-
         $this->assertDatabaseHas('delivery_pickup_points', ['delivery_method_id' => $methodId, 'name' => 'Sklep centralny']);
+        $this->assertSame(['pl' => 'Pon.–pt. 10–18'], json_decode((string) DB::table('delivery_pickup_points')->value('instructions'), true));
+    }
+
+    public function test_a_pickup_method_cannot_be_created_without_a_first_point(): void
+    {
+        $staff = StaffAccount::factory()->create();
+
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [
+            'kind' => 'pickup', 'name' => 'Odbiór osobisty', 'active' => true,
+            'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false,
+        ])->assertSessionHasErrors(['pickup_point.name', 'pickup_point.city']);
+
+        $this->assertDatabaseCount('delivery_methods', 0);
+    }
+
+    public function test_a_pickup_method_cannot_be_enabled_while_it_has_no_active_point(): void
+    {
+        $staff = StaffAccount::factory()->create();
+        $methodId = DB::table('delivery_methods')->insertGetId(['kind' => 'pickup', 'name' => 'Odbiór', 'active' => false, 'created_at' => now(), 'updated_at' => now()]);
+        $payload = ['kind' => 'pickup', 'name' => 'Odbiór', 'active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false];
+
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), $payload)->assertSessionHasErrors('active');
+        $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'active' => false]);
+
+        $this->actingAs($staff)->post(route('panel.delivery.pickup-points.store', $methodId), self::FIRST_POINT)->assertSessionHasNoErrors();
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), $payload)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'active' => true]);
     }
 
     public function test_the_pickup_deadline_is_kept_only_for_pickup_methods_and_validated(): void
@@ -111,9 +140,9 @@ final class DeliveryPanelTest extends TestCase
         $staff = StaffAccount::factory()->create();
         $base = ['active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false, 'price_amount' => '0'];
 
-        $this->actingAs($staff)->post(route('panel.delivery.store'), [...$base, 'kind' => 'pickup', 'name' => 'Odbiór', 'pickup_deadline_days' => 5])->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [...$base, 'kind' => 'pickup', 'name' => 'Odbiór', 'pickup_deadline_days' => 5, 'pickup_point' => self::FIRST_POINT])->assertSessionHasNoErrors();
         $this->actingAs($staff)->post(route('panel.delivery.store'), [...$base, 'kind' => 'flat_rate', 'name' => 'Kurier', 'pickup_deadline_days' => 5])->assertSessionHasNoErrors();
-        $this->actingAs($staff)->post(route('panel.delivery.store'), [...$base, 'kind' => 'pickup', 'name' => 'Zły', 'pickup_deadline_days' => 0])->assertSessionHasErrors('pickup_deadline_days');
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [...$base, 'kind' => 'pickup', 'name' => 'Zły', 'pickup_deadline_days' => 0, 'pickup_point' => self::FIRST_POINT])->assertSessionHasErrors('pickup_deadline_days');
 
         $this->assertDatabaseHas('delivery_methods', ['name' => 'Odbiór', 'pickup_deadline_days' => 5]);
         $this->assertDatabaseHas('delivery_methods', ['name' => 'Kurier', 'pickup_deadline_days' => null]);

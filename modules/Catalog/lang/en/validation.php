@@ -12,4 +12,6 @@ return [
     'single_unit_type' => 'This product type must be sold as a single unit, in a quantity from 1 to 1.',
     'primary_category' => 'The primary category must be assigned to the product.',
     'category_self_parent' => 'A category cannot become its own descendant.',
+    'attribute_in_use_as_option' => 'This attribute is a variant option of some products and cannot be deleted.',
+    'attribute_value_in_use_as_option' => 'This value is used by product variants and cannot be deleted.',
 ];

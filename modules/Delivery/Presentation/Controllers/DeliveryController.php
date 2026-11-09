@@ -23,6 +23,8 @@ use Litecommerce\Modules\Delivery\Infrastructure\ShippingMethodSettingsResolver;
 use Litecommerce\Modules\Pricing\Contracts\PricingSettingsCatalog;
 use Litecommerce\Modules\Pricing\Contracts\TaxRateCatalog;
 use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
+use Litecommerce\Modules\Store\Contracts\LanguageData;
+use Litecommerce\Modules\Store\Contracts\LanguageRepository;
 use Litecommerce\Modules\Store\Contracts\SettingsTabContent;
 use Litecommerce\Modules\Store\Contracts\SettingsTabContext;
 
@@ -34,6 +36,7 @@ final class DeliveryController extends Controller
         private readonly PricingSettingsCatalog $pricingSettings,
         private readonly ShippingMethodRegistry $shippingMethods,
         private readonly ShippingMethodSettingsResolver $methodSettings,
+        private readonly LanguageRepository $languages,
     ) {}
 
     public function settingsTab(SettingsTabContext $context): SettingsTabContent
@@ -64,6 +67,9 @@ final class DeliveryController extends Controller
             // must be able to pick ANY country to configure a rate/exclusion for it.
             'countries' => (new CountryDirectory)->all(app()->getLocale()),
             'plugin_methods' => $this->pluginMethods(),
+            'languages' => array_map(static fn (LanguageData $language): array => [
+                'code' => $language->code, 'name' => $language->name,
+            ], array_values(array_filter($this->languages->all(), static fn (LanguageData $language): bool => $language->isEnabled))),
         ];
     }
 
@@ -111,7 +117,13 @@ final class DeliveryController extends Controller
     public function store(Request $request, ManageDeliveryMethods $manager): RedirectResponse
     {
         $data = $this->validated($request);
-        $manager->create($data);
+
+        if ($data['kind'] === 'pickup') {
+            $point = $request->validate($this->pickupPointRules('pickup_point.'))['pickup_point'];
+            $manager->createWithPickupPoint($data, $point);
+        } else {
+            $manager->create($data);
+        }
 
         return back()->with('status', trans('delivery::panel.method_added'));
     }
@@ -119,6 +131,11 @@ final class DeliveryController extends Controller
     public function update(Request $request, DeliveryMethod $deliveryMethod, ManageDeliveryMethods $manager): RedirectResponse
     {
         $data = $this->validated($request);
+
+        if ($data['kind'] === 'pickup' && $data['active'] && ! $deliveryMethod->pickupPoints()->where('active', true)->exists()) {
+            return back()->withErrors(['active' => trans('delivery::panel.pickup_requires_point')]);
+        }
+
         $manager->update($deliveryMethod, $data);
 
         return back()->with('status', trans('delivery::panel.method_saved'));
@@ -220,18 +237,24 @@ final class DeliveryController extends Controller
     /** @return array<string, mixed> */
     private function validatedPickupPoint(Request $request): array
     {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'country_code' => ['required', 'string', 'size:2'],
-            'postal_code' => ['required', 'string', 'max:20'],
-            'city' => ['required', 'string', 'max:255'],
-            'region' => ['nullable', 'string', 'max:255'],
-            'address_line_1' => ['required', 'string', 'max:255'],
-            'address_line_2' => ['nullable', 'string', 'max:255'],
-            'instructions' => ['nullable', 'array'],
-            'instructions.*' => ['nullable', 'string', 'max:2000'],
-            'active' => ['required', 'boolean'],
-        ]);
+        return $request->validate($this->pickupPointRules());
+    }
+
+    /** @return array<string, list<string>> */
+    private function pickupPointRules(string $prefix = ''): array
+    {
+        return [
+            $prefix.'name' => ['required', 'string', 'max:255'],
+            $prefix.'country_code' => ['required', 'string', 'size:2'],
+            $prefix.'postal_code' => ['required', 'string', 'max:20'],
+            $prefix.'city' => ['required', 'string', 'max:255'],
+            $prefix.'region' => ['nullable', 'string', 'max:255'],
+            $prefix.'address_line_1' => ['required', 'string', 'max:255'],
+            $prefix.'address_line_2' => ['nullable', 'string', 'max:255'],
+            $prefix.'instructions' => ['nullable', 'array'],
+            $prefix.'instructions.*' => ['nullable', 'string', 'max:2000'],
+            $prefix.'active' => ['required', 'boolean'],
+        ];
     }
 
     /** @return array<string, mixed> */

@@ -84,7 +84,7 @@
                                 <input type="radio" name="delivery_method_id" form="checkout-address-form"
                                        data-field="method_id" data-field-attr="pickup_point_id:data-pickup-point-id"
                                        data-storefront-auto-submit data-storefront-preselect>
-                                <span class="left"><span class="radio-dot"></span><span data-field="label"></span></span>
+                                <span class="left"><span class="radio-dot"></span><span><span data-field="label"></span><small class="radio-detail" data-field="detail" data-storefront-when="detail" hidden></small></span></span>
                                 <span class="price mono" data-field="gross_amount"></span>
                             </label>
                         </template>

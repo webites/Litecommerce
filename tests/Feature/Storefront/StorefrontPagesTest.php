@@ -565,6 +565,44 @@ final class StorefrontPagesTest extends TestCase
         );
     }
 
+    public function test_specification_tab_lists_visible_descriptive_attributes_grouped_and_hides_the_rest(): void
+    {
+        $staff = StaffAccount::factory()->create();
+        $this->actingAs($staff)->post(route('panel.catalog.products.store'), [
+            'locale' => 'pl', 'name' => 'Szafka z atrybutami', 'short_description' => '', 'description_html' => '',
+            'type' => 'physical', 'status' => 'published', 'featured' => false, 'unit_code' => 'piece',
+            'minimum_quantity' => '1', 'maximum_quantity' => '', 'quantity_step' => '1',
+            'sku' => '', 'gtin' => '', 'mpn' => '', 'brand_id' => '', 'category_ids' => [], 'primary_category_id' => '',
+        ])->assertSessionHasNoErrors();
+        $productId = (int) DB::table('products')->latest('id')->value('id');
+        $slug = (string) DB::table('product_translations')->where('product_id', $productId)->value('slug');
+
+        $this->actingAs($staff)->post(route('panel.catalog.products.references.attribute-groups.store'), ['locale' => 'pl', 'key' => 'wymiary', 'name' => 'Wymiary'])->assertSessionHasNoErrors();
+        $groupId = (int) DB::table('attribute_groups')->where('key', 'wymiary')->value('id');
+        $this->actingAs($staff)->post(route('panel.catalog.products.references.attributes.store'), ['locale' => 'pl', 'key' => 'szerokosc', 'name' => 'Szerokość', 'type' => 'number', 'is_filterable' => false, 'attribute_group_id' => $groupId])->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('panel.catalog.products.references.attributes.store'), ['locale' => 'pl', 'key' => 'material', 'name' => 'Materiał', 'type' => 'text', 'is_filterable' => false])->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('panel.catalog.products.references.attributes.store'), ['locale' => 'pl', 'key' => 'uwagi_wewnetrzne', 'name' => 'Uwagi wewnętrzne', 'type' => 'text', 'is_filterable' => false, 'visible_on_product' => false])->assertSessionHasNoErrors();
+        $width = (int) DB::table('attribute_definitions')->where('key', 'szerokosc')->value('id');
+        $material = (int) DB::table('attribute_definitions')->where('key', 'material')->value('id');
+        $internal = (int) DB::table('attribute_definitions')->where('key', 'uwagi_wewnetrzne')->value('id');
+
+        $this->actingAs($staff)->put(route('panel.catalog.products.attributes.update', $productId), ['attributes' => [
+            ['attribute_definition_id' => $width, 'value_ids' => [], 'number_value' => '45.500000'],
+            ['attribute_definition_id' => $material, 'value_ids' => [], 'text_value' => 'Dąb'],
+            ['attribute_definition_id' => $internal, 'value_ids' => [], 'text_value' => 'Tajne'],
+        ]])->assertSessionHasNoErrors();
+        $this->app['auth']->forgetGuards();
+
+        $html = (string) $this->get('/pl/products/'.$slug)->assertOk()->getContent();
+
+        $this->assertStringContainsString('<h3 class="spec-group">Wymiary</h3>', $html);
+        $this->assertStringContainsString('<tr><th>Szerokość</th><td>45.5</td></tr>', $html);
+        $this->assertStringContainsString('<h3 class="spec-group">Pozostałe</h3>', $html);
+        $this->assertStringContainsString('<tr><th>Materiał</th><td>Dąb</td></tr>', $html);
+        $this->assertStringNotContainsString('Tajne', $html);
+        $this->assertLessThan(strpos($html, 'Pozostałe'), strpos($html, 'Wymiary'));
+    }
+
     public function test_specification_tab_shows_one_offer_at_a_time_not_every_offer_at_once(): void
     {
         $staff = StaffAccount::factory()->create();

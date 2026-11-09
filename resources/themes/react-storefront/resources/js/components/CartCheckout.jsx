@@ -88,7 +88,10 @@ export default function CartCheckout({ step, apiFetch, onCartCountChange, checko
             const price = await refreshPrice(id);
             const options = price.delivery?.options ?? [];
             const preselected = options.find((o) => o.preselect) ?? options[0];
-            if (preselected) setDeliveryMethodId(preselected.method_id);
+            if (preselected) {
+                setDeliveryMethodId(preselected.method_id);
+                if (preselected.kind === 'pickup' && preselected.pickup_points?.length > 0) setPickupPointId(preselected.pickup_points[0].id);
+            }
         })();
     }, [step, apiFetch, refreshPrice]);
 
@@ -237,10 +240,11 @@ export default function CartCheckout({ step, apiFetch, onCartCountChange, checko
         options.forEach((option) => {
             if (option.kind === 'pickup' && option.pickup_points?.length > 0) {
                 option.pickup_points.forEach((point) => {
-                    rows.push({ ...option, pickup_point_id: point.id, label: `${option.name} — ${point.name}` });
+                    const address = [point.address_line_1, point.address_line_2, [point.postal_code, point.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+                    rows.push({ ...option, pickup_point_id: point.id, label: `${option.name} — ${point.name}`, detail: [address, point.instructions].filter(Boolean).join(' · ') });
                 });
             } else {
-                rows.push({ ...option, pickup_point_id: '', label: option.name });
+                rows.push({ ...option, pickup_point_id: '', label: option.name, detail: '' });
             }
         });
         return rows;
@@ -537,7 +541,7 @@ function CheckoutView({
                                 aria-checked={isSelected}
                                 tabIndex={0}
                             >
-                                <div className="left"><span className="radio-dot" /><span>{row.label}</span></div>
+                                <div className="left"><span className="radio-dot" /><span>{row.label}{row.detail && <small className="radio-detail">{row.detail}</small>}</span></div>
                                 <span className="price mono">{Number(row.gross_amount) === 0 ? t('checkout.free') : fmt(row.gross_amount)}</span>
                             </div>
                         );

@@ -228,7 +228,7 @@ final readonly class CatalogDemoDataContributor implements DemoDataContributor
             $definitionKey = "demo_{$key}_{$suffix}";
             $definition = AttributeDefinition::query()->create([
                 'key' => $definitionKey,
-                'type' => 'select',
+                'type' => 'single_select',
                 'is_filterable' => true,
             ]);
             AttributeDefinitionTranslation::query()->create([

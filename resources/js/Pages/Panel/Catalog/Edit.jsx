@@ -16,9 +16,10 @@ import { useTranslate } from '@/lib/i18n';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { ChevronDown as MoveDown, ChevronUp as MoveUp, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import ProductAttributes from './ProductAttributes';
 import ProductForm from './ProductForm';
 
-export default function Edit({ product, languages, types, statuses, variantSeoModes, hasAxes, units, brands, categories, variantAttributes, variants, maxVariants, productAttributes, images, relations, relationTypes, taxRates, baseCurrencyCode, currencies }) {
+export default function Edit({ product, languages, types, statuses, variantSeoModes, hasAxes, units, brands, categories, attributeGroups, variantAttributes, variants, maxVariants, productAttributes, images, relations, relationTypes, taxRates, baseCurrencyCode, currencies }) {
     const t = useTranslate();
     const form = useForm(product);
     const generator = useForm({ options: variantAttributes.map((attribute) => ({ attribute_definition_id: attribute.id, attribute_value_ids: [] })) });
@@ -291,258 +292,240 @@ export default function Edit({ product, languages, types, statuses, variantSeoMo
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 800 }}>
                 {status && <Alert tone="success">{status}</Alert>}
 
-                <ProductForm form={form} languages={languages} types={types} statuses={statuses} variantSeoModes={variantSeoModes} hasAxes={hasAxes} units={units} brands={brands} categories={categories} onSubmit={submit} submitLabel={t('catalog.edit.save_product', 'Save product')} />
-
-                {canManagePricing && (
-                    <Card title={t('catalog.edit.tax_title', 'VAT rate')} description={t('catalog.edit.tax_description', "A variant inherits the product's rate. No assignment means 0%.")}>
-                        <form onSubmit={saveTax} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            <Select
-                                label={t('catalog.edit.vat_rate', 'VAT rate')}
-                                value={taxForm.data.tax_rate_id}
-                                options={[{ label: t('catalog.edit.no_vat', 'None (0%)'), value: '' }, ...taxRates.map((rate) => ({ label: rate.kind === 'percentage' ? `${rate.name} (${rate.percentage}%)` : rate.name, value: rate.id }))]}
-                                error={taxForm.errors.tax_rate_id}
-                                onChange={(e) => taxForm.setData('tax_rate_id', e.target.value ? Number(e.target.value) : '')}
-                            />
-                            <div><Button type="submit" loading={taxForm.processing}>{t('catalog.edit.save', 'Save')}</Button></div>
-                        </form>
-                    </Card>
-                )}
-
-                <Card
-                    title={t('catalog.edit.images_title', 'Product images')}
-                    description={t('catalog.edit.images_description', 'The first image is the main image. Variant images take precedence over product images.')}
-                >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                            {images.map((image, index) => (
-                                <div key={image.id} style={{ width: 96 }}>
-                                    <div style={{ width: 96, height: 96, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--gray-2)' }}>
-                                        {image.url && <img src={image.url} alt={image.original_filename} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                                        <div style={{ display: 'flex' }}>
-                                            <button type="button" disabled={index === 0} onClick={() => moveImage(index, -1)} style={iconButtonStyle}><MoveUp size={14} /></button>
-                                            <button type="button" disabled={index === images.length - 1} onClick={() => moveImage(index, 1)} style={iconButtonStyle}><MoveDown size={14} /></button>
-                                        </div>
-                                        <button type="button" onClick={() => removeImage(image.id)} style={iconButtonStyle}><Trash2 size={14} color="var(--danger-text)" /></button>
-                                    </div>
-                                </div>
-                            ))}
-                            <label
-                                style={{
-                                    width: 96, height: 96, border: '1px dashed var(--border-default)', borderRadius: 'var(--radius-md)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-tertiary)',
-                                }}
-                            >
-                                <Plus size={20} />
-                                <input
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    hidden
-                                    disabled={uploadingImage}
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0];
-                                        if (file) uploadImage(file);
-                                        event.target.value = '';
-                                    }}
-                                />
-                            </label>
-                        </div>
-                        {images.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{t('catalog.edit.no_images', 'No images.')}</div>}
-                    </div>
-                </Card>
-
-                <Card
-                    title={t('catalog.edit.attributes_title', 'Descriptive attributes')}
-                    description={t('catalog.edit.attributes_description', 'The same definitions and values are used in the product description, filters, and variant options.')}
-                    action={<Button type="button" variant="outline" size="sm" onClick={() => setShowAttributeModal(true)}>{t('catalog.edit.new_attribute', 'New attribute')}</Button>}
-                >
-                    <form onSubmit={saveAttributes} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {attributesForm.data.attributes.map((attribute, index) => (
-                            <div
-                                key={attribute.attribute_definition_id}
-                                className="grid grid-cols-1 sm:grid-cols-[180px_1fr]"
-                                style={{ alignItems: 'start', gap: 16, borderTop: index === 0 ? 'none' : '1px solid var(--border-subtle)', paddingTop: index === 0 ? 0 : 16 }}
-                            >
-                                <Checkbox label={attribute.name} checked={attribute.assigned} onChange={(checked) => setAttribute(attribute.attribute_definition_id, { assigned: checked })} />
-                                <div style={{ opacity: attribute.assigned ? 1 : 0.45, pointerEvents: attribute.assigned ? 'auto' : 'none' }}>
-                                    {attribute.type === 'text' && <Input value={attribute.text_value} onChange={(event) => setAttribute(attribute.attribute_definition_id, { text_value: event.target.value })} />}
-                                    {attribute.type === 'number' && <Input type="number" step="0.000001" value={attribute.number_value} onChange={(event) => setAttribute(attribute.attribute_definition_id, { number_value: event.target.value })} />}
-                                    {attribute.type === 'boolean' && <Checkbox label={t('catalog.edit.yes', 'Yes')} checked={attribute.boolean_value} onChange={(checked) => setAttribute(attribute.attribute_definition_id, { boolean_value: checked })} />}
-                                    {(attribute.type === 'single_select' || attribute.type === 'color') && <Select value={attribute.value_ids[0] || ''} options={[{ label: t('catalog.edit.select_value', 'Select a value'), value: '' }, ...attribute.values.map((value) => ({ label: value.name, value: value.id }))]} onChange={(event) => setAttribute(attribute.attribute_definition_id, { value_ids: event.target.value ? [Number(event.target.value)] : [] })} />}
-                                    {attribute.type === 'multi_select' && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{attribute.values.map((value) => <Checkbox key={value.id} label={value.name} checked={attribute.value_ids.includes(value.id)} onChange={(checked) => setAttribute(attribute.attribute_definition_id, { value_ids: checked ? [...attribute.value_ids, value.id] : attribute.value_ids.filter((id) => id !== value.id) })} />)}</div>}
-                                    {(attributesForm.errors[`attributes.${index}`] || attributesForm.errors[`attributes.${index}.value_ids`]) && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--danger-text)' }}>{attributesForm.errors[`attributes.${index}`] || attributesForm.errors[`attributes.${index}.value_ids`]}</div>}
-                                </div>
-                            </div>
-                        ))}
-                        {productAttributes.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{t('catalog.edit.no_attributes_yet', 'No attributes created yet.')}</div>}
-                        <div><Button type="submit" loading={attributesForm.processing}>{t('catalog.edit.save_attributes', 'Save attributes')}</Button></div>
-                    </form>
-                </Card>
-
-                <Card
-                    title={t('catalog.edit.variants_title', 'Variants')}
-                    description={(
+                <ProductForm form={form} languages={languages} types={types} statuses={statuses} variantSeoModes={variantSeoModes} hasAxes={hasAxes} units={units} brands={brands} categories={categories} onSubmit={submit} submitLabel={t('catalog.edit.save_product', 'Save product')} extras={{
+                    important: (
                         <>
-                            {t('catalog.edit.variants_description', 'The generator only adds missing combinations and keeps existing SKUs. Product limit: :max variants.', { max: maxVariants })}
-                            {productType.tracks_stock && t('catalog.edit.variants_description_physical_suffix', ' Stock receipts and corrections are done from the warehouse view.')}
-                        </>
-                    )}
-                    action={canManageInventory && productType.tracks_stock && (
-                        <Button variant="outline" size="sm" href={route('panel.warehouse.index')}>{t('catalog.edit.warehouse', 'Warehouse')}</Button>
-                    )}
-                >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <Table
-                            columns={[
-                                {
-                                    header: t('catalog.edit.column_sku', 'SKU'),
-                                    render: (v) => (
-                                        <span style={{ fontFamily: 'var(--font-mono)' }}>
-                                            {v.sku}
-                                            {v.is_default && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-tertiary)' }}>{t('catalog.edit.default_suffix', 'default')}</span>}
-                                        </span>
-                                    ),
-                                },
-                                { header: t('catalog.edit.column_options', 'Options'), render: (v) => v.options.join(' · ') || t('catalog.edit.simple_variant', 'Simple variant') },
-                                {
-                                    header: t('catalog.edit.column_state', 'State'),
-                                    render: (v) => {
-                                        if (!v.enabled) return t('catalog.edit.disabled', 'Disabled');
-                                        if (!v.price.has_price) return <Badge tone="warning">{t('catalog.edit.active_no_price', 'Active — no price')}</Badge>;
-
-                                        return t('catalog.edit.active', 'Active');
-                                    },
-                                },
-                                {
-                                    header: t('catalog.edit.column_net', 'Net (:currency)', { currency: baseCurrencyCode }),
-                                    align: 'right',
-                                    render: (v) => v.price.base_quote?.net || '—',
-                                },
-                                {
-                                    header: t('catalog.edit.column_gross', 'Gross (:currency)', { currency: baseCurrencyCode }),
-                                    align: 'right',
-                                    render: (v) => v.price.base_quote?.gross || '—',
-                                },
-                                {
-                                    header: t('catalog.edit.column_promotion', 'Promotion'),
-                                    align: 'right',
-                                    render: (v) => (v.price.base_quote?.promotional_active ? (v.price.promotional_amount || '—') : (v.price.promotional_amount ? t('catalog.edit.inactive', 'inactive') : '—')),
-                                },
-                                {
-                                    header: t('catalog.edit.column_stock', 'Stock'),
-                                    align: 'right',
-                                    render: (v) => (v.stock ? <Badge tone={stockTone(v.stock.available_quantity)}>{v.stock.available_quantity}</Badge> : '—'),
-                                },
-                                { header: '', align: 'right', render: (v) => <Button variant="outline" size="sm" onClick={() => editVariant(v)}>{t('catalog.edit.edit', 'Edit')}</Button> },
-                            ]}
-                            rows={variants}
-                        />
-
-                        <form onSubmit={generate} style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 20 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{t('catalog.edit.generate_combinations_title', 'Generate missing combinations')}</div>
-                                <Button type="button" variant="outline" size="sm" onClick={() => setShowAttributeModal(true)}>{t('catalog.edit.new_attribute', 'New attribute')}</Button>
-                            </div>
-                            {variantAttributes.map((attribute) => (
-                                <fieldset key={attribute.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-                                    <legend style={{ padding: '0 4px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{attribute.name}</legend>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-                                        {attribute.values.map((value) => (
-                                            <div key={value.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <Checkbox
-                                                    checked={generator.data.options.find((option) => option.attribute_definition_id === attribute.id)?.attribute_value_ids.includes(value.id) || false}
-                                                    onChange={(checked) => toggleValue(attribute.id, value.id, checked)}
-                                                />
-                                                {value.color_hex && (
-                                                    <span style={{ width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-default)', background: value.color_hex }} />
-                                                )}
-                                                <span style={{ fontSize: 13 }}>{value.name}</span>
+                        <Card
+                            collapsible defaultOpen={false}
+                            title={t('catalog.edit.images_title', 'Product images')}
+                            description={t('catalog.edit.images_description', 'The first image is the main image. Variant images take precedence over product images.')}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                                    {images.map((image, index) => (
+                                        <div key={image.id} style={{ width: 96 }}>
+                                            <div style={{ width: 96, height: 96, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--gray-2)' }}>
+                                                {image.url && <img src={image.url} alt={image.original_filename} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                                             </div>
-                                        ))}
-                                    </div>
-                                </fieldset>
-                            ))}
-                            {variantAttributes.length === 0 && (
-                                <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-                                    {t('catalog.edit.no_variant_attributes', 'First add an attribute and its values in the brands/categories/attributes catalog.')}
-                                </div>
-                            )}
-                            {generator.errors.options && <span style={{ fontSize: 13, color: 'var(--danger-text)' }}>{generator.errors.options}</span>}
-                            <div>
-                                <Button type="submit" variant="solid" disabled={generator.processing || variantAttributes.length === 0}>
-                                    {t('catalog.edit.generate_variants', 'Generate variants')}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </Card>
-
-                <Card
-                    title={t('catalog.edit.relations_title', 'Related products')}
-                    description={t('catalog.edit.relations_description', 'Upsell/cross-sell relations are one-directional — adding one here does not automatically appear on the related product.')}
-                >
-                    <form onSubmit={saveRelations} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        {relationTypes.map((relationType) => {
-                            const items = relationsForm.data.relations.filter((r) => r.type === relationType.value);
-                            const results = relationResults[relationType.value] || [];
-
-                            return (
-                                <div key={relationType.value} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{relationType.label}</div>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                                        {items.map((item) => (
-                                            <span
-                                                key={item.target_product_id}
-                                                style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                                                    background: 'var(--gray-3)', borderRadius: 'var(--radius-sm)', padding: '4px 6px 4px 10px', fontSize: 12,
-                                                }}
-                                            >
-                                                {item.name}{item.sku ? ` · ${item.sku}` : ''}
-                                                <button type="button" onClick={() => removeRelation(relationType.value, item.target_product_id)} style={{ ...iconButtonStyle, padding: 2 }}>
-                                                    <X size={12} />
-                                                </button>
-                                            </span>
-                                        ))}
-                                        {items.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('catalog.edit.no_related_products', 'No related products.')}</span>}
-                                    </div>
-                                    <div style={{ position: 'relative', maxWidth: 360 }}>
-                                        <Input
-                                            placeholder={t('catalog.edit.search_placeholder', 'Search product by name or SKU…')}
-                                            value={relationSearch[relationType.value] || ''}
-                                            onChange={(event) => searchRelationCandidates(relationType.value, event.target.value)}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                                                <div style={{ display: 'flex' }}>
+                                                    <button type="button" disabled={index === 0} onClick={() => moveImage(index, -1)} style={iconButtonStyle}><MoveUp size={14} /></button>
+                                                    <button type="button" disabled={index === images.length - 1} onClick={() => moveImage(index, 1)} style={iconButtonStyle}><MoveDown size={14} /></button>
+                                                </div>
+                                                <button type="button" onClick={() => removeImage(image.id)} style={iconButtonStyle}><Trash2 size={14} color="var(--danger-text)" /></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <label
+                                        style={{
+                                            width: 96, height: 96, border: '1px dashed var(--border-default)', borderRadius: 'var(--radius-md)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-tertiary)',
+                                        }}
+                                    >
+                                        <Plus size={20} />
+                                        <input
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/webp,image/gif"
+                                            hidden
+                                            disabled={uploadingImage}
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0];
+                                                if (file) uploadImage(file);
+                                                event.target.value = '';
+                                            }}
                                         />
-                                        {results.length > 0 && (
-                                            <div
-                                                style={{
-                                                    position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: 4,
-                                                    background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)',
-                                                    boxShadow: 'var(--shadow-sm)', maxHeight: 220, overflowY: 'auto',
-                                                }}
-                                            >
-                                                {results.map((candidate) => (
-                                                    <button
-                                                        key={candidate.id}
-                                                        type="button"
-                                                        onClick={() => addRelation(relationType.value, candidate)}
-                                                        style={{
-                                                            display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
-                                                            fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)',
-                                                        }}
-                                                    >
-                                                        {candidate.name}{candidate.sku ? ` · ${candidate.sku}` : ''}
-                                                    </button>
+                                    </label>
+                                </div>
+                                {images.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{t('catalog.edit.no_images', 'No images.')}</div>}
+                            </div>
+                        </Card>
+
+                        <Card
+                            collapsible defaultOpen={false}
+                            title={t('catalog.edit.variants_title', 'Variants')}
+                            description={(
+                                <>
+                                    {t('catalog.edit.variants_description', 'The generator only adds missing combinations and keeps existing SKUs. Product limit: :max variants.', { max: maxVariants })}
+                                    {productType.tracks_stock && t('catalog.edit.variants_description_physical_suffix', ' Stock receipts and corrections are done from the warehouse view.')}
+                                </>
+                            )}
+                            action={canManageInventory && productType.tracks_stock && (
+                                <Button variant="outline" size="sm" href={route('panel.warehouse.index')}>{t('catalog.edit.warehouse', 'Warehouse')}</Button>
+                            )}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                <Table
+                                    columns={[
+                                        {
+                                            header: t('catalog.edit.column_sku', 'SKU'),
+                                            render: (v) => (
+                                                <span style={{ fontFamily: 'var(--font-mono)' }}>
+                                                    {v.sku}
+                                                    {v.is_default && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-tertiary)' }}>{t('catalog.edit.default_suffix', 'default')}</span>}
+                                                </span>
+                                            ),
+                                        },
+                                        { header: t('catalog.edit.column_options', 'Options'), render: (v) => v.options.join(' · ') || t('catalog.edit.simple_variant', 'Simple variant') },
+                                        {
+                                            header: t('catalog.edit.column_state', 'State'),
+                                            render: (v) => {
+                                                if (!v.enabled) return t('catalog.edit.disabled', 'Disabled');
+                                                if (!v.price.has_price) return <Badge tone="warning">{t('catalog.edit.active_no_price', 'Active — no price')}</Badge>;
+
+                                                return t('catalog.edit.active', 'Active');
+                                            },
+                                        },
+                                        {
+                                            header: t('catalog.edit.column_net', 'Net (:currency)', { currency: baseCurrencyCode }),
+                                            align: 'right',
+                                            render: (v) => v.price.base_quote?.net || '—',
+                                        },
+                                        {
+                                            header: t('catalog.edit.column_gross', 'Gross (:currency)', { currency: baseCurrencyCode }),
+                                            align: 'right',
+                                            render: (v) => v.price.base_quote?.gross || '—',
+                                        },
+                                        {
+                                            header: t('catalog.edit.column_promotion', 'Promotion'),
+                                            align: 'right',
+                                            render: (v) => (v.price.base_quote?.promotional_active ? (v.price.promotional_amount || '—') : (v.price.promotional_amount ? t('catalog.edit.inactive', 'inactive') : '—')),
+                                        },
+                                        {
+                                            header: t('catalog.edit.column_stock', 'Stock'),
+                                            align: 'right',
+                                            render: (v) => (v.stock ? <Badge tone={stockTone(v.stock.available_quantity)}>{v.stock.available_quantity}</Badge> : '—'),
+                                        },
+                                        { header: '', align: 'right', render: (v) => <Button variant="outline" size="sm" onClick={() => editVariant(v)}>{t('catalog.edit.edit', 'Edit')}</Button> },
+                                    ]}
+                                    rows={variants}
+                                />
+
+                                <form onSubmit={generate} style={{ display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{t('catalog.edit.generate_combinations_title', 'Generate missing combinations')}</div>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => setShowAttributeModal(true)}>{t('catalog.edit.new_attribute', 'New attribute')}</Button>
+                                    </div>
+                                    {variantAttributes.map((attribute) => (
+                                        <fieldset key={attribute.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+                                            <legend style={{ padding: '0 4px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{attribute.name}</legend>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                                                {attribute.values.map((value) => (
+                                                    <div key={value.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <Checkbox
+                                                            checked={generator.data.options.find((option) => option.attribute_definition_id === attribute.id)?.attribute_value_ids.includes(value.id) || false}
+                                                            onChange={(checked) => toggleValue(attribute.id, value.id, checked)}
+                                                        />
+                                                        {value.color_hex && (
+                                                            <span style={{ width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-default)', background: value.color_hex }} />
+                                                        )}
+                                                        <span style={{ fontSize: 13 }}>{value.name}</span>
+                                                    </div>
                                                 ))}
                                             </div>
-                                        )}
+                                        </fieldset>
+                                    ))}
+                                    {variantAttributes.length === 0 && (
+                                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                                            {t('catalog.edit.no_variant_attributes', 'First add an attribute and its values in the brands/categories/attributes catalog.')}
+                                        </div>
+                                    )}
+                                    {generator.errors.options && <span style={{ fontSize: 13, color: 'var(--danger-text)' }}>{generator.errors.options}</span>}
+                                    <div>
+                                        <Button type="submit" variant="solid" disabled={generator.processing || variantAttributes.length === 0}>
+                                            {t('catalog.edit.generate_variants', 'Generate variants')}
+                                        </Button>
                                     </div>
-                                </div>
-                            );
-                        })}
-                        <div><Button type="submit" loading={relationsForm.processing}>{t('catalog.edit.save_relations', 'Save relations')}</Button></div>
-                    </form>
-                </Card>
+                                </form>
+                            </div>
+                        </Card>
+
+                        <ProductAttributes form={attributesForm} groups={attributeGroups} onChange={setAttribute} onSubmit={saveAttributes} onNewAttribute={() => setShowAttributeModal(true)} />
+
+                        {canManagePricing && (
+                            <Card collapsible defaultOpen={false} title={t('catalog.edit.tax_title', 'VAT rate')} description={t('catalog.edit.tax_description', "A variant inherits the product's rate. No assignment means 0%.")}>
+                                <form onSubmit={saveTax} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <Select
+                                        label={t('catalog.edit.vat_rate', 'VAT rate')}
+                                        value={taxForm.data.tax_rate_id}
+                                        options={[{ label: t('catalog.edit.no_vat', 'None (0%)'), value: '' }, ...taxRates.map((rate) => ({ label: rate.kind === 'percentage' ? `${rate.name} (${rate.percentage}%)` : rate.name, value: rate.id }))]}
+                                        error={taxForm.errors.tax_rate_id}
+                                        onChange={(e) => taxForm.setData('tax_rate_id', e.target.value ? Number(e.target.value) : '')}
+                                    />
+                                    <div><Button type="submit" loading={taxForm.processing}>{t('catalog.edit.save', 'Save')}</Button></div>
+                                </form>
+                            </Card>
+                        )}
+                        </>
+                    ),
+                    minor: (
+                        <Card
+                            collapsible defaultOpen={false}
+                            title={t('catalog.edit.relations_title', 'Related products')}
+                            description={t('catalog.edit.relations_description', 'Upsell/cross-sell relations are one-directional — adding one here does not automatically appear on the related product.')}
+                        >
+                            <form onSubmit={saveRelations} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                                {relationTypes.map((relationType) => {
+                                    const items = relationsForm.data.relations.filter((r) => r.type === relationType.value);
+                                    const results = relationResults[relationType.value] || [];
+
+                                    return (
+                                        <div key={relationType.value} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{relationType.label}</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                {items.map((item) => (
+                                                    <span
+                                                        key={item.target_product_id}
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                                                            background: 'var(--gray-3)', borderRadius: 'var(--radius-sm)', padding: '4px 6px 4px 10px', fontSize: 12,
+                                                        }}
+                                                    >
+                                                        {item.name}{item.sku ? ` · ${item.sku}` : ''}
+                                                        <button type="button" onClick={() => removeRelation(relationType.value, item.target_product_id)} style={{ ...iconButtonStyle, padding: 2 }}>
+                                                            <X size={12} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                {items.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('catalog.edit.no_related_products', 'No related products.')}</span>}
+                                            </div>
+                                            <div style={{ position: 'relative', maxWidth: 360 }}>
+                                                <Input
+                                                    placeholder={t('catalog.edit.search_placeholder', 'Search product by name or SKU…')}
+                                                    value={relationSearch[relationType.value] || ''}
+                                                    onChange={(event) => searchRelationCandidates(relationType.value, event.target.value)}
+                                                />
+                                                {results.length > 0 && (
+                                                    <div
+                                                        style={{
+                                                            position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: 4,
+                                                            background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)',
+                                                            boxShadow: 'var(--shadow-sm)', maxHeight: 220, overflowY: 'auto',
+                                                        }}
+                                                    >
+                                                        {results.map((candidate) => (
+                                                            <button
+                                                                key={candidate.id}
+                                                                type="button"
+                                                                onClick={() => addRelation(relationType.value, candidate)}
+                                                                style={{
+                                                                    display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
+                                                                    fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)',
+                                                                }}
+                                                            >
+                                                                {candidate.name}{candidate.sku ? ` · ${candidate.sku}` : ''}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <div><Button type="submit" loading={relationsForm.processing}>{t('catalog.edit.save_relations', 'Save relations')}</Button></div>
+                            </form>
+                        </Card>
+                    ),
+                }} />
             </div>
 
             <Modal

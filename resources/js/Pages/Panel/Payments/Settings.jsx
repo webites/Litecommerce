@@ -44,6 +44,9 @@ export default function Settings({ currencies, languages, embedded = false }) {
             <Head title={t('payments.settings.title')} />
             <div style={{ padding: 24, maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {flash.status && <Alert tone="success">{flash.status}</Alert>}
+                <Card title={t('payments.settings.on_delivery_title')} description={t('payments.settings.on_delivery_description')}>
+                    <Button variant="outline" size="sm" href="/panel/settings#delivery">{t('payments.settings.on_delivery_action')}</Button>
+                </Card>
                 {currencies.map((account) => <AccountForm key={account.code} account={account} languages={languages} />)}
             </div>
         </SettingsPageFrame>

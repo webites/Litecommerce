@@ -13,10 +13,12 @@ use Litecommerce\Modules\Notifications\Contracts\PanelInbox;
 use Litecommerce\Modules\Notifications\Contracts\PanelMessage;
 use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
 use Litecommerce\Modules\Store\Contracts\LanguageRepository;
+use Litecommerce\Modules\Store\Contracts\SetupChecklist;
+use Litecommerce\Modules\Store\Contracts\SetupStepData;
 
 final class PanelHomeController extends Controller
 {
-    public function show(Request $request, CurrencyRepository $currencies, LanguageRepository $languages, PanelInbox $inbox): Response|RedirectResponse
+    public function show(Request $request, CurrencyRepository $currencies, LanguageRepository $languages, PanelInbox $inbox, SetupChecklist $checklist): Response|RedirectResponse
     {
         if ($currencies->base() === null || $languages->default() === null) {
             return redirect()->route('panel.wizard.show');
@@ -26,6 +28,7 @@ final class PanelHomeController extends Controller
         $unread = array_flip(array_map(static fn (PanelMessage $message): string => $message->key, $inbox->unread($staffId)));
 
         return Inertia::render('Panel/Dashboard', [
+            'setup_steps' => array_map(static fn (SetupStepData $step): array => $step->toArray(), $checklist->steps()),
             'messages' => array_map(
                 static fn (PanelMessage $message): array => $message->toArray() + ['read' => ! isset($unread[$message->key])],
                 $inbox->active($staffId),

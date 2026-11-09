@@ -978,15 +978,18 @@
      * there is exactly one such field per form, not one per rendered row.
      * --------------------------------------------------------------- */
 
+    function syncDeliveryPickupPoint(radio) {
+        const target = document.querySelector('[name="delivery_pickup_point_id"]');
+        if (target) {
+            target.value = radio.dataset.pickupPointId || '';
+        }
+    }
+
     function bindDeliveryPickupPointSync() {
         document.addEventListener('change', function (event) {
             const radio = event.target.closest('input[name="delivery_method_id"]');
-            if (!radio) {
-                return;
-            }
-            const target = document.querySelector('[name="delivery_pickup_point_id"]');
-            if (target) {
-                target.value = radio.dataset.pickupPointId || '';
+            if (radio) {
+                syncDeliveryPickupPoint(radio);
             }
         });
     }
@@ -1057,13 +1060,15 @@
         items.forEach(function (option) {
             if (option.kind === 'pickup' && option.pickup_points && option.pickup_points.length > 0) {
                 option.pickup_points.forEach(function (point) {
+                    const address = [point.address_line_1, point.address_line_2, [point.postal_code, point.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
                     flattened.push(Object.assign({}, option, {
                         pickup_point_id: point.id,
                         label: option.name + ' \u2014 ' + point.name,
+                        detail: [address, point.instructions].filter(Boolean).join(' \u00b7 '),
                     }));
                 });
             } else {
-                flattened.push(Object.assign({ pickup_point_id: '', label: option.name }, option));
+                flattened.push(Object.assign({ pickup_point_id: '', label: option.name, detail: '' }, option));
             }
         });
         return flattened;
@@ -1135,6 +1140,12 @@
                     radio.checked = radio.value === previouslyChecked[radio.name];
                 } else if (isFirstOfGroup && (radio.hasAttribute('data-storefront-preselect') || root.hasAttribute('data-storefront-preselect'))) {
                     radio.checked = true;
+                }
+                if (radio.name === 'delivery_method_id' && radio.checked) {
+                    slot.appendChild(clone);
+                    syncDeliveryPickupPoint(radio);
+
+                    return;
                 }
             }
 

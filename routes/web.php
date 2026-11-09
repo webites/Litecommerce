@@ -8,6 +8,7 @@ use Litecommerce\Modules\Blog\Presentation\Controllers\Panel\BlogCategoryControl
 use Litecommerce\Modules\Blog\Presentation\Controllers\Panel\BlogPostController;
 use Litecommerce\Modules\Cache\Presentation\Controllers\ClearApplicationCacheController;
 use Litecommerce\Modules\Cart\Presentation\Controllers\Panel\CartOverviewController;
+use Litecommerce\Modules\Catalog\Presentation\Controllers\AttributeCatalogController;
 use Litecommerce\Modules\Catalog\Presentation\Controllers\CatalogReferenceController;
 use Litecommerce\Modules\Catalog\Presentation\Controllers\CatalogSeoSettingsController;
 use Litecommerce\Modules\Catalog\Presentation\Controllers\ProductController;
@@ -181,6 +182,14 @@ Route::middleware(['auth', 'no-store', 'staff.permission:'.CorePermission::Acces
             Route::put('/references/categories/{category}', [CatalogReferenceController::class, 'updateCategory'])->name('references.categories.update');
             Route::post('/references/categories/{category}/image', [CatalogReferenceController::class, 'uploadCategoryImage'])->name('references.categories.image.store');
             Route::delete('/references/categories/{category}/image', [CatalogReferenceController::class, 'removeCategoryImage'])->name('references.categories.image.destroy');
+            Route::get('/references/attributes', [AttributeCatalogController::class, 'index'])->name('references.attributes.index');
+            Route::put('/references/attributes/{attributeDefinition}', [AttributeCatalogController::class, 'updateAttribute'])->name('references.attributes.update');
+            Route::delete('/references/attributes/{attributeDefinition}', [AttributeCatalogController::class, 'destroyAttribute'])->name('references.attributes.destroy');
+            Route::put('/references/attribute-values/{attributeValue}', [AttributeCatalogController::class, 'updateValue'])->name('references.attribute-values.update');
+            Route::delete('/references/attribute-values/{attributeValue}', [AttributeCatalogController::class, 'destroyValue'])->name('references.attribute-values.destroy');
+            Route::post('/references/attribute-groups', [AttributeCatalogController::class, 'storeGroup'])->name('references.attribute-groups.store');
+            Route::put('/references/attribute-groups/{attributeGroup}', [AttributeCatalogController::class, 'updateGroup'])->name('references.attribute-groups.update');
+            Route::delete('/references/attribute-groups/{attributeGroup}', [AttributeCatalogController::class, 'destroyGroup'])->name('references.attribute-groups.destroy');
             Route::post('/references/attributes', [CatalogReferenceController::class, 'storeAttribute'])->name('references.attributes.store');
             Route::post('/references/attributes/{attributeDefinition}/values', [CatalogReferenceController::class, 'storeAttributeValue'])->name('references.attribute-values.store');
             Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
