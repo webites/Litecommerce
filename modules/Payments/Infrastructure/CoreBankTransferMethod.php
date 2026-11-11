@@ -36,6 +36,7 @@ final class CoreBankTransferMethod implements PaymentMethod
         return new PaymentStartResult('bank-transfer:'.$context->orderId, PaymentAttemptStatus::Pending, metadata: [
             'beneficiary_name' => $account->beneficiary_name,
             'account_number' => $account->account_number,
+            'transfer_title' => $context->orderNumber,
             'instructions' => $instructions[$context->locale] ?? $instructions,
         ]);
     }

@@ -3,6 +3,7 @@ import Tabs from '@/Components/ui/Tabs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Delivery from '@/Pages/Panel/Delivery/Index';
 import Payments from '@/Pages/Panel/Payments/Settings';
+import Orders from '@/Pages/Panel/Orders/Settings';
 import Pricing from '@/Pages/Panel/Pricing/Index';
 import Languages from '@/Pages/Panel/Store/Languages/Index';
 import Redirects from '@/Pages/Panel/Store/Redirects/Index';
@@ -16,10 +17,10 @@ import Email from './Email';
 import General from './General';
 import Scheduler from './Scheduler';
 
-const components = { general: General, advanced: Advanced, pricing: Pricing, delivery: Delivery, payments: Payments, languages: Languages, seo: Seo, redirects: Redirects, email: Email, scheduler: Scheduler, updates: Updates };
+const components = { general: General, advanced: Advanced, pricing: Pricing, orders: Orders, delivery: Delivery, payments: Payments, languages: Languages, seo: Seo, redirects: Redirects, email: Email, scheduler: Scheduler, updates: Updates };
 
 export default function Index() {
-    const { settingsTabs = [] } = usePage().props;
+    const { settingsTabs = [], flash } = usePage().props;
     const t = useTranslate();
     const initialId = useMemo(() => {
         const hash = window.location.hash.replace(/^#/, '');
@@ -58,6 +59,7 @@ export default function Index() {
     }, [settingsTabs]);
 
     const select = (id) => {
+        if (flash?.status || flash?.error) router.replaceProp('flash', {}, { preserveScroll: true });
         window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${id}`);
         setActiveId(id);
     };

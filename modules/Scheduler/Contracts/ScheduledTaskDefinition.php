@@ -12,5 +12,6 @@ final readonly class ScheduledTaskDefinition
         public string $key,
         public int $intervalSeconds,
         public Closure $handler,
+        public string $label = '',
     ) {}
 }

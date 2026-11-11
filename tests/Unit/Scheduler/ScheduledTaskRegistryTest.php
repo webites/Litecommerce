@@ -25,6 +25,14 @@ final class ScheduledTaskRegistryTest extends TestCase
         $this->assertSame(60, $registry->all()[0]->intervalSeconds);
     }
 
+    public function test_label_is_kept_with_the_definition(): void
+    {
+        $registry = new InMemoryScheduledTaskRegistry;
+        $registry->register('plugin.example.labelled', 60, static function (): void {}, 'Example task');
+
+        $this->assertSame('Example task', $registry->all()[0]->label);
+    }
+
     public function test_duplicate_task_is_rejected(): void
     {
         $registry = new InMemoryScheduledTaskRegistry;

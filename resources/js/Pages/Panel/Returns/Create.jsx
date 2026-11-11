@@ -10,8 +10,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { formatMoney as money } from '@/lib/money';
 
-function money(value, currency, places) { const [whole, fraction = ''] = String(value).split('.'); return `${whole}${places ? `,${fraction.padEnd(places, '0').slice(0, places)}` : ''} ${currency}`; }
 
 export default function Create({ order, lines, reasons }) {
     const t = useTranslate();
@@ -44,7 +44,7 @@ export default function Create({ order, lines, reasons }) {
     const anySelected = Object.keys(selected).length > 0;
 
     return (
-        <AuthenticatedLayout header={<PageHeader title={t('returns.create_page_title', 'New return request')} description={t('returns.order_label', 'Order :id', { id: order.id })} actions={<Button href={route('panel.orders.show', order.id)} variant="outline" size="sm">{t('returns.back_to_order', 'Back to order')}</Button>} />}>
+        <AuthenticatedLayout header={<PageHeader title={t('returns.create_page_title', 'New return request')} description={t('returns.order_label', 'Order :id', { id: order.number })} actions={<Button href={route('panel.orders.show', order.id)} variant="outline" size="sm">{t('returns.back_to_order', 'Back to order')}</Button>} />}>
             <Head title={t('returns.create_page_title', 'New return request')} />
             <div style={{ padding: 24, maxWidth: 900 }}>
                 <Card description={t('returns.create_card_description', 'Select the affected lines and set the quantity being returned.')}>

@@ -21,17 +21,20 @@ final class ManageOrder
         private readonly OrderEmailComposer $emails,
     ) {}
 
-    public function changeStatus(string $orderId, string $newStatus, string $actorId, ?string $reason): void
+    public function changeStatus(string $orderId, string $newStatus, string $actorId, ?string $reason, bool $reopenConfirmed = false): void
     {
         if (! $this->statuses->has($newStatus) || $newStatus === 'cancelled') {
             throw new \InvalidArgumentException('Nieprawidłowy status. Anulowanie wymaga osobnej operacji biznesowej.');
         }
-        DB::transaction(function () use ($orderId, $newStatus, $actorId, $reason): void {
+        DB::transaction(function () use ($orderId, $newStatus, $actorId, $reason, $reopenConfirmed): void {
             $order = Order::query()->lockForUpdate()->findOrFail($orderId);
             if ($order->status === $newStatus) {
                 return;
             }
             $old = $order->status;
+            if ($old === 'cancelled' && ! $reopenConfirmed) {
+                throw new OrderReopenNotConfirmedException;
+            }
             $order->update(['status' => $newStatus, 'version' => $order->version + 1]);
             OrderStatusHistory::query()->create([
                 'order_id' => $order->id, 'old_status' => $old, 'new_status' => $newStatus,

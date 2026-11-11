@@ -28,7 +28,7 @@ final class AuditServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'audit');
         $this->commands([PruneAuditEntriesCommand::class]);
 
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.audit.prune', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.audit.prune', 86400, label: 'audit::tasks.prune', handler: static function (): void {
             Artisan::call('audit:prune');
         });
     }

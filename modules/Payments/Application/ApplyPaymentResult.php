@@ -29,6 +29,10 @@ final class ApplyPaymentResult
                 return $this->projector->project($attempt);
             }
 
+            if ($this->isStaleProgressReport($attempt->status, $result->status)) {
+                return $this->projector->project($attempt);
+            }
+
             if ($result->status === PaymentAttemptStatus::Succeeded) {
                 $paidAt = $result->paidAt ?? new \DateTimeImmutable;
                 $outcome = $this->orders->confirm($attempt->order_id, $paidAt, $attempt->id);
@@ -51,5 +55,11 @@ final class ApplyPaymentResult
 
             return $this->projector->project($attempt->fresh());
         });
+    }
+
+    private function isStaleProgressReport(string $current, PaymentAttemptStatus $reported): bool
+    {
+        return in_array($current, [PaymentAttemptStatus::Failed->value, PaymentAttemptStatus::Cancelled->value], true)
+            && in_array($reported, [PaymentAttemptStatus::Created, PaymentAttemptStatus::Pending], true);
     }
 }

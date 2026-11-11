@@ -3,8 +3,6 @@
 @section('title', trans('orders::order.my_orders_title'))
 
 @section('content')
-    @php $trim = static fn (?string $value): ?string => $value === null || ! str_contains($value, '.') ? $value : rtrim(rtrim($value, '0'), '.'); @endphp
-
     <div class="page-head">
         <h1>{{ trans('orders::order.my_orders_title') }}</h1>
         <button type="button" class="btn btn-secondary" data-storefront-action="post" data-storefront-url="/customer/logout" data-storefront-redirect="/{locale}">{{ trans('orders::order.logout') }}</button>
@@ -26,14 +24,14 @@
                 <tbody>
                     @foreach ($page->items as $order)
                         <tr>
-                            <td class="mono">{{ $order->id }}</td>
-                            <td>{{ $order->createdAt?->format('Y-m-d H:i') }}</td>
+                            <td class="mono">{{ $order->number }}</td>
+                            <td>{{ formatDateTime($order->createdAt) }}</td>
                             <td>
                                 <div class="status-stack">
                                     @include('theme::partials.order-status-badge', ['status' => $order->status, 'paymentStatus' => $order->paymentStatus])
                                 </div>
                             </td>
-                            <td class="mono">{{ $trim($order->totalGrossAmount) }} {{ $order->currencyCode }}</td>
+                            <td class="mono">{{ formatMoney($order->totalGrossAmount, $order->currencyCode) }}</td>
                             <td><a href="{{ route('storefront.account.orders.show', ['locale' => $locale, 'order' => $order->id]) }}">{{ trans('orders::order.details_link') }}</a></td>
                         </tr>
                     @endforeach

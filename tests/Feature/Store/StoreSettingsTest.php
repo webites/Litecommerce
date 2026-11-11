@@ -38,15 +38,27 @@ final class StoreSettingsTest extends TestCase
             'store_name' => 'Sklep Testowy',
             'blog_enabled' => false,
             'products_per_page' => 18,
+            'timezone' => 'Europe/Warsaw',
         ])->assertSessionHasNoErrors();
 
         $settings = app(StoreSettingsReader::class)->current();
+        $this->assertSame('Europe/Warsaw', $settings->timezone);
         $this->assertSame('Sklep Testowy', $settings->storeName);
         $this->assertFalse($settings->blogEnabled);
         $this->assertSame(18, $settings->catalogProductsPerPage);
         $this->assertSame('Sklep Testowy', app(GlobalTagRegistry::class)->resolve('pl')['store_name']);
         $this->get('/pl/blog')->assertNotFound();
         $this->get('/pl/sitemap-posts.xml')->assertNotFound();
+    }
+
+    public function test_timezone_must_be_a_valid_identifier_and_defaults_to_the_application_zone(): void
+    {
+        $staff = StaffAccount::factory()->create();
+        $this->assertSame(config('app.timezone'), app(StoreSettingsReader::class)->current()->timezone);
+
+        $this->actingAs($staff)->put(route('panel.settings.update'), [
+            'store_name' => 'Sklep', 'blog_enabled' => true, 'products_per_page' => 12, 'timezone' => 'Mars/Olympus',
+        ])->assertSessionHasErrors('timezone');
     }
 
     public function test_logo_can_be_replaced_and_removed_without_leaving_old_media(): void
@@ -136,7 +148,7 @@ final class StoreSettingsTest extends TestCase
             ->assertHeader('Cache-Control', 'max-age=0, must-revalidate, no-cache, no-store, private')
             ->assertInertia(fn ($page) => $page
                 ->component('Panel/Store/Settings/Index')
-                ->has('settingsTabs', 11));
+                ->has('settingsTabs', 12));
 
         $this->actingAs($staff)->getJson(route('panel.settings.tabs.show', 'email'))
             ->assertOk()

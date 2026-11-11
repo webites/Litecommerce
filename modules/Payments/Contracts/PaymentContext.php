@@ -8,6 +8,7 @@ final readonly class PaymentContext
 {
     public function __construct(
         public string $orderId,
+        public string $orderNumber,
         public string $attemptId,
         public string $amount,
         public string $currencyCode,

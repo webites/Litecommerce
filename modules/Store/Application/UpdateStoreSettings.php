@@ -16,12 +16,13 @@ final readonly class UpdateStoreSettings
         private StoreSettingsStore $settings,
     ) {}
 
-    public function basics(string $storeName, bool $blogEnabled, int $catalogProductsPerPage): void
+    public function basics(string $storeName, bool $blogEnabled, int $catalogProductsPerPage, string $timezone): void
     {
         $this->settings->setMany([
             StoreSettingKeys::StoreName => $storeName,
             StoreSettingKeys::BlogEnabled => $blogEnabled,
             StoreSettingKeys::CatalogProductsPerPage => $catalogProductsPerPage,
+            StoreSettingKeys::Timezone => $timezone,
         ]);
     }
 

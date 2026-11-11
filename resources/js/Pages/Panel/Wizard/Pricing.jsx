@@ -15,7 +15,7 @@ export default function Pricing({ steps, skippable, priceEntryMode }) {
             skippable={skippable}
             title={t('setup.pricing.title', 'Prices and taxes')}
             description={t('setup.pricing.description', 'How you enter prices in the catalog, and optionally your main tax rate. More rates can be added later in Settings.')}
-            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store')); }}
+            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store', { step: 'pricing' })); }}
             processing={processing}
         >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

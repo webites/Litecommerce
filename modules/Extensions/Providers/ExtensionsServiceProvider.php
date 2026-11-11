@@ -75,7 +75,7 @@ final class ExtensionsServiceProvider extends ServiceProvider
 
         $tasks = $this->app->make(ScheduledTaskRegistry::class);
         if (! collect($tasks->all())->contains(static fn ($task): bool => $task->key === 'core.extensions.finish_wind_down')) {
-            $tasks->register('core.extensions.finish_wind_down', 300, fn () => $this->app->make(FinishExtensionWindDown::class)->run());
+            $tasks->register('core.extensions.finish_wind_down', 300, label: 'extensions::tasks.finish_wind_down', handler: fn () => $this->app->make(FinishExtensionWindDown::class)->run());
         }
 
         // Not-yet-installed shop (no schema yet) or a database briefly unreachable: extensions stay dormant.

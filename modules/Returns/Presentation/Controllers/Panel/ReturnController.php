@@ -34,7 +34,7 @@ final class ReturnController extends Controller
 {
     public function __construct(private readonly ProductTypeRegistry $productTypes) {}
 
-    public function index(Request $request, ReturnCatalog $catalog): Response
+    public function index(Request $request, ReturnCatalog $catalog, OrderReturnCatalog $orders): Response
     {
         $status = $request->query('status');
         $requests = ReturnRequestModel::query()
@@ -42,9 +42,11 @@ final class ReturnController extends Controller
             ->withCount(['lines as pending_count' => fn ($q) => $q->where('status', 'pending')])
             ->orderByDesc('created_at')->paginate(25);
 
+        $numbers = $orders->numbersFor($requests->getCollection()->pluck('order_id')->unique()->values()->all());
+
         return Inertia::render('Panel/Returns/Index', [
             'returnRequests' => $requests->through(fn (ReturnRequestModel $row): array => [
-                'id' => $row->id, 'order_id' => $row->order_id, 'email' => $row->email,
+                'id' => $row->id, 'order_id' => $row->order_id, 'order_number' => $numbers[$row->order_id] ?? $row->order_id, 'email' => $row->email,
                 'status' => $row->status, 'pending_count' => $row->pending_count,
                 'created_at' => $row->created_at?->toIso8601String(),
             ]),
@@ -69,7 +71,7 @@ final class ReturnController extends Controller
         return Inertia::render('Panel/Returns/Show', [
             'returnRequest' => $this->requestData($data, $linesByOrderLineId),
             'order' => [
-                'id' => $order->id, 'currency_code' => $order->currencyCode, 'currency_decimal_places' => $decimalPlaces,
+                'id' => $order->id, 'number' => $order->number, 'currency_code' => $order->currencyCode, 'currency_decimal_places' => $decimalPlaces,
                 'payment_status' => $order->paymentStatus, 'email' => $order->email,
                 'delivery_gross_amount' => $order->deliveryGrossAmount,
             ],
@@ -89,7 +91,7 @@ final class ReturnController extends Controller
 
         return Inertia::render('Panel/Returns/Create', [
             'order' => [
-                'id' => $orderData->id, 'currency_code' => $orderData->currencyCode,
+                'id' => $orderData->id, 'number' => $orderData->number, 'currency_code' => $orderData->currencyCode,
                 'currency_decimal_places' => $decimalPlaces, 'email' => $orderData->email,
             ],
             'lines' => array_values(array_map(fn (OrderLineDetailData $line): array => [

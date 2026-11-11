@@ -25,7 +25,7 @@ export default function Currency({ steps }) {
             activeKey="currency"
             title={t('setup.currency.title', 'Base currency')}
             description={t('setup.currency.description', 'The base currency has an exchange rate of 1, and changing it will be blocked after the first real order.')}
-            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store')); }}
+            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store', { step: 'currency' })); }}
             processing={processing}
         >
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

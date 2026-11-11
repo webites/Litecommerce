@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Carbon;
+use Litecommerce\Modules\Store\Contracts\AddressFormatter;
+use Litecommerce\Modules\Store\Contracts\DateTimeFormatter;
+use Litecommerce\Modules\Store\Contracts\MoneyFormatter;
+use Litecommerce\Modules\Store\Contracts\PercentageFormatter;
+use Litecommerce\Modules\Store\Contracts\PhoneFormatter;
+use Litecommerce\Modules\Store\Contracts\QuantityFormatter;
 use Litecommerce\Modules\Store\Contracts\StoreSettingsData;
 use Litecommerce\Modules\Store\Contracts\StoreSettingsReader;
 
@@ -77,25 +84,75 @@ if (! function_exists('isBlogEnabled')) {
     }
 }
 
+if (! function_exists('formatMoney')) {
+    /** Customer-facing amount with the decimal places configured for its currency. */
+    function formatMoney(string $amount, string $currencyCode, ?string $locale = null): string
+    {
+        return app(MoneyFormatter::class)->format($amount, $currencyCode, $locale);
+    }
+}
+
 if (! function_exists('formatMoneyAmount')) {
     function formatMoneyAmount(string $amount, string $currencyCode, int $decimalPlaces, ?string $locale = null): string
     {
-        $decimalPlaces = max(0, min(6, $decimalPlaces));
-        $normalized = bcadd($amount, '0', $decimalPlaces);
-        [$integer, $fraction] = array_pad(explode('.', $normalized, 2), 2, '');
-        $isPolish = ($locale ?? app()->getLocale()) === 'pl';
-        $groupSeparator = $isPolish ? "\u{00A0}" : ',';
-        $decimalSeparator = $isPolish ? ',' : '.';
-        $sign = str_starts_with($integer, '-') ? '-' : '';
-        $digits = ltrim($integer, '-');
-        $grouped = preg_replace('/\B(?=(\d{3})+(?!\d))/', $groupSeparator, $digits) ?? $digits;
-        $formatted = $sign.$grouped;
+        return app(MoneyFormatter::class)->formatWithPlaces($amount, $currencyCode, $decimalPlaces, $locale);
+    }
+}
 
-        if ($decimalPlaces > 0) {
-            $formatted .= $decimalSeparator.str_pad($fraction, $decimalPlaces, '0');
-        }
+if (! function_exists('formatDate')) {
+    /** Date in the store time zone and the reader's locale (accepts anything Carbon can parse; null renders as an empty string). */
+    function formatDate(DateTimeInterface|string|null $moment, ?string $locale = null): string
+    {
+        return $moment === null ? '' : app(DateTimeFormatter::class)->date(Carbon::parse($moment), $locale);
+    }
+}
 
-        return $formatted.' '.$currencyCode;
+if (! function_exists('formatDateTime')) {
+    function formatDateTime(DateTimeInterface|string|null $moment, ?string $locale = null): string
+    {
+        return $moment === null ? '' : app(DateTimeFormatter::class)->dateTime(Carbon::parse($moment), $locale);
+    }
+}
+
+if (! function_exists('formatQuantity')) {
+    /** Stored decimal quantity ("2.000000") as "2"; fractional units keep their digits. */
+    function formatQuantity(string $quantity, ?string $locale = null): string
+    {
+        return app(QuantityFormatter::class)->format($quantity, $locale);
+    }
+}
+
+if (! function_exists('formatPercent')) {
+    /** Percentage such as a tax rate ("23.00" renders as "23%"). */
+    function formatPercent(string $percentage, ?string $locale = null): string
+    {
+        return app(PercentageFormatter::class)->format($percentage, $locale);
+    }
+}
+
+if (! function_exists('formatPhone')) {
+    /** Phone number in international notation; an unrecognised value is shown as typed. */
+    function formatPhone(string $phone, ?string $countryCode = null): string
+    {
+        return app(PhoneFormatter::class)->format($phone, $countryCode);
+    }
+}
+
+if (! function_exists('formatCountry')) {
+    function formatCountry(string $countryCode, ?string $locale = null): string
+    {
+        return app(AddressFormatter::class)->countryName($countryCode, $locale);
+    }
+}
+
+if (! function_exists('formatAddressLines')) {
+    /**
+     * @param  array<string, mixed>  $address  address snapshot
+     * @return list<string>
+     */
+    function formatAddressLines(array $address, ?string $locale = null, bool $includePhone = false): array
+    {
+        return app(AddressFormatter::class)->lines($address, $locale, $includePhone);
     }
 }
 

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Cart;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Litecommerce\Modules\Identity\Infrastructure\Models\StaffAccount;
 use Litecommerce\Modules\Installer\Infrastructure\InstallationLock;
 use Tests\Concerns\CarriesTestCookies;
+use Tests\Concerns\InstallsStorefrontTheme;
 use Tests\Concerns\UsesIsolatedStorage;
 use Tests\TestCase;
 
@@ -22,6 +24,7 @@ use Tests\TestCase;
 final class CheckoutDeliveryTest extends TestCase
 {
     use CarriesTestCookies;
+    use InstallsStorefrontTheme;
     use UsesIsolatedStorage;
 
     private array $plAddress = [
@@ -41,6 +44,7 @@ final class CheckoutDeliveryTest extends TestCase
         DB::table('bank_transfer_accounts')->insert(['currency_code' => 'PLN', 'beneficiary_name' => 'Litecommerce Test', 'account_number' => 'PL001234', 'instructions' => json_encode(['pl' => 'x']), 'enabled' => true, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('warehouses')->insert(['name' => 'Magazyn główny', 'created_at' => now(), 'updated_at' => now()]);
         $this->withCredentials();
+        $this->installStorefrontTheme();
     }
 
     private function createPhysicalVariant(): int
@@ -85,6 +89,33 @@ final class CheckoutDeliveryTest extends TestCase
             ->assertStatus(422)->assertJsonPath('code', 'delivery_method_required');
     }
 
+    public function test_a_broken_delivery_state_rejection_is_logged_for_monitoring(): void
+    {
+        Log::spy();
+        $variantId = $this->createPhysicalVariant();
+        $draftId = $this->createDraft($variantId);
+        $this->putJson("/checkout/{$draftId}", [
+            'buyer_type' => 'person', 'email' => 'guest@example.com',
+            'billing_address' => $this->plAddress, 'ships_to_different_address' => false,
+        ])->assertOk();
+        $hash = $this->getJson("/checkout/{$draftId}")->json('price.hash');
+
+        $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $hash])->assertStatus(422);
+
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context): bool => $context['code'] === 'delivery_method_required' && $context['draft'] === $draftId)->once();
+    }
+
+    public function test_a_customer_mistake_rejection_is_not_logged_as_a_monitored_failure(): void
+    {
+        Log::spy();
+        $variantId = $this->createPhysicalVariant();
+
+        $this->postJson('/checkout', ['cart_id' => 'nonexistent'])->assertStatus(422);
+        $this->getJson('/checkout/'.$this->createDraft($variantId))->assertOk();
+
+        Log::shouldNotHaveReceived('warning');
+    }
+
     public function test_choosing_a_flat_rate_method_adds_its_price_to_the_total_and_snapshots_it_on_the_order(): void
     {
         $methodId = DB::table('delivery_methods')->insertGetId(['kind' => 'flat_rate', 'name' => 'Kurier', 'active' => true, 'created_at' => now(), 'updated_at' => now()]);
@@ -103,9 +134,17 @@ final class CheckoutDeliveryTest extends TestCase
         $this->assertSame('10.00', $price['total_gross_amount']);
         $this->assertSame('14.99', $price['delivery']['selected']['gross_amount']);
         $this->assertSame('24.99', $price['grand_total_gross_amount']);
+        $this->assertSame("24,99\u{00A0}zł", $price['grand_total_gross_amount_formatted']);
+        $this->assertSame("14,99\u{00A0}zł", $price['delivery']['selected']['gross_amount_formatted']);
+        $this->assertArrayHasKey('gross_amount_formatted', $price['delivery']['options'][0]);
 
         $confirmed = $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $price['hash']])->assertOk()->json();
         $orderId = $confirmed['order']['id'];
+
+        $this->get("/pl/checkout/{$draftId}/thank-you")->assertOk()
+            ->assertSee('Adres dostawy')->assertDontSee('Dane zamawiającego')
+            ->assertSee('Polska')->assertDontSee('PL<', false)
+            ->assertSee("24,99\u{00A0}zł")->assertSee("14,99\u{00A0}zł");
 
         $this->assertDatabaseHas('orders', ['id' => $orderId, 'total_gross_amount' => '24.99']);
         $this->assertDatabaseHas('order_deliveries', ['order_id' => $orderId, 'delivery_method_id' => 'core.'.$methodId, 'gross_amount' => '14.99']);
@@ -170,6 +209,10 @@ final class CheckoutDeliveryTest extends TestCase
         $hash = $this->getJson("/checkout/{$draftId}")->json('price.hash');
 
         $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $hash])->assertOk();
+
+        $this->get("/pl/checkout/{$draftId}/thank-you")->assertOk()
+            ->assertSee('Dane zamawiającego')->assertDontSee('Adres dostawy')
+            ->assertSee('Sklep');
         $this->assertSame($pointId, (int) DB::table('order_deliveries')->latest('id')->value('pickup_point_id'));
     }
 

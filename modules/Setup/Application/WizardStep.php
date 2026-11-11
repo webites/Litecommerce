@@ -10,6 +10,7 @@ enum WizardStep: string
     case Currency = 'currency';
     case Profile = 'profile';
     case Pricing = 'pricing';
+    case Delivery = 'delivery';
     case Email = 'email';
     case Demo = 'demo';
 

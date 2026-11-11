@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <meta name="application-name" content="{{ config('app.name') }}">
+        <meta name="store-timezone" content="{{ app(\Litecommerce\Modules\Store\Contracts\StoreSettingsReader::class)->current()->timezone }}">
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
         <script>

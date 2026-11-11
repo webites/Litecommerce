@@ -40,7 +40,7 @@ final class PersonalDataAnonymizationTest extends TestCase
     {
         $id = (string) Str::uuid();
         DB::table('orders')->insert([
-            'id' => $id, 'source_type' => 'test', 'source_id' => $id, 'status' => 'processing', 'payment_status' => 'paid',
+            'id' => $id, 'number' => crc32($id), 'public_number' => (string) crc32($id), 'source_type' => 'test', 'source_id' => $id, 'status' => 'processing', 'payment_status' => 'paid',
             'payment_method_id' => 'core.bank_transfer', 'payment_kind' => 'bank_transfer', 'email' => 'jan@example.com', 'currency_code' => 'PLN',
             'mode' => 'live', 'locale' => 'pl', 'total_net_amount' => '100', 'total_vat_amount' => '23', 'total_gross_amount' => '123',
             'created_at' => $createdAt, 'updated_at' => $createdAt,
@@ -54,8 +54,9 @@ final class PersonalDataAnonymizationTest extends TestCase
         ]);
         DB::table('order_notes')->insert(['order_id' => $id, 'body' => 'Klient prosił o dzwonienie na 600100200', 'author_type' => 'staff', 'author_id' => '1', 'created_at' => $createdAt, 'updated_at' => $createdAt]);
         DB::table('order_status_history')->insert([
-            ['order_id' => $id, 'new_status' => 'processing', 'actor_type' => 'staff', 'actor_id' => '1', 'reason' => 'Rozmowa z Janem', 'occurred_at' => $createdAt, 'created_at' => $createdAt, 'updated_at' => $createdAt],
-            ['order_id' => $id, 'new_status' => 'pending_payment', 'actor_type' => 'system', 'actor_id' => null, 'reason' => 'Złożono zamówienie.', 'occurred_at' => $createdAt, 'created_at' => $createdAt, 'updated_at' => $createdAt],
+            ['order_id' => $id, 'old_status' => null, 'new_status' => 'processing', 'actor_type' => 'staff', 'actor_id' => '1', 'reason' => 'Rozmowa z Janem', 'occurred_at' => $createdAt, 'created_at' => $createdAt, 'updated_at' => $createdAt],
+            ['order_id' => $id, 'old_status' => null, 'new_status' => 'pending_payment', 'actor_type' => 'system', 'actor_id' => null, 'reason' => 'Proszę dzwonić na 600100200', 'occurred_at' => $createdAt, 'created_at' => $createdAt, 'updated_at' => $createdAt],
+            ['order_id' => $id, 'old_status' => 'pending_payment', 'new_status' => 'processing', 'actor_type' => 'system', 'actor_id' => null, 'reason' => 'Potwierdzono pełną wpłatę.', 'occurred_at' => $createdAt, 'created_at' => $createdAt, 'updated_at' => $createdAt],
         ]);
 
         return $id;
@@ -95,7 +96,8 @@ final class PersonalDataAnonymizationTest extends TestCase
 
         $this->assertSame('[usunięto]', DB::table('order_notes')->where('order_id', $id)->value('body'));
         $this->assertNull(DB::table('order_status_history')->where('order_id', $id)->where('actor_type', 'staff')->value('reason'));
-        $this->assertSame('Złożono zamówienie.', DB::table('order_status_history')->where('order_id', $id)->where('actor_type', 'system')->value('reason'));
+        $this->assertNull(DB::table('order_status_history')->where('order_id', $id)->whereNull('old_status')->where('actor_type', 'system')->value('reason'));
+        $this->assertSame('Potwierdzono pełną wpłatę.', DB::table('order_status_history')->where('order_id', $id)->whereNotNull('old_status')->value('reason'));
         $this->assertSame(0, DB::table('guest_order_access_tokens')->where('order_id', $id)->count());
         $this->assertNull(app(GuestOrderAccess::class)->resolve($token));
         $this->assertDatabaseHas('order_outbox_events', ['order_id' => $id, 'event_type' => 'OrderPersonalDataAnonymized']);

@@ -15,6 +15,7 @@ export default function Wizard({ steps = [], activeIndex = 0, children }) {
                                 style={{
                                     width: 28,
                                     height: 28,
+                                    flexShrink: 0,
                                     borderRadius: '50%',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -48,7 +49,8 @@ export default function Wizard({ steps = [], activeIndex = 0, children }) {
                                     flex: 1,
                                     height: 1,
                                     background: i < activeIndex ? 'var(--success-solid)' : 'var(--border-default)',
-                                    margin: '0 10px',
+                                    margin: '0 4px',
+                                    minWidth: 2,
                                 }}
                             />
                         )}

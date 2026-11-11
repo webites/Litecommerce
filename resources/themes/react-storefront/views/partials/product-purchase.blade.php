@@ -8,9 +8,9 @@
     $purchaseOffers = array_map(static fn ($offer): array => [
         'variantId' => $offer->variantId,
         'sku' => $offer->sku,
-        'unitAmount' => $offer->unitAmount,
-        'regularUnitAmount' => $offer->regularUnitAmount,
-        'promotionalUnitAmount' => $offer->promotionalUnitAmount,
+        'unitAmountFormatted' => $offer->unitAmount === null ? null : formatMoneyAmount($offer->unitAmount, $currencyCode, $currencyDecimalPlaces, $locale),
+        'regularUnitAmountFormatted' => $offer->regularUnitAmount === null ? null : formatMoneyAmount($offer->regularUnitAmount, $currencyCode, $currencyDecimalPlaces, $locale),
+        'promotionalUnitAmountFormatted' => $offer->promotionalUnitAmount === null ? null : formatMoneyAmount($offer->promotionalUnitAmount, $currencyCode, $currencyDecimalPlaces, $locale),
         'promotionalActive' => $offer->promotionalActive,
         'available' => $offer->available,
         'optionSignature' => $offer->optionSignature,
@@ -20,8 +20,6 @@
     id="product-purchase-root"
     data-axes='@json($axes)'
     data-offers='@json($purchaseOffers)'
-    data-currency="{{ $currencyCode }}"
-    data-currency-decimals="{{ $currencyDecimalPlaces }}"
     data-preselected='@json($preselectedOptionValues ?? new stdClass())'
     data-base-url="{{ route('storefront.catalog.show', ['locale' => $locale, 'slug' => $product->slug]) }}"
 ></div>

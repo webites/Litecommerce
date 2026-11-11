@@ -115,8 +115,8 @@ final class StorefrontPagesTest extends TestCase
 
         $response = $this->get('/pl')->assertOk();
         $response->assertSee('Ebook widoczny');
-        $response->assertSee('25,00 PLN');
-        $response->assertDontSee('25.000000 PLN');
+        $response->assertSee("25,00\u{00A0}zł");
+        $response->assertDontSee('25.000000');
         $response->assertDontSee('Ebook szkic');
     }
 
@@ -225,7 +225,7 @@ final class StorefrontPagesTest extends TestCase
         $response = $this->get('/pl/products/'.$source['slug'])->assertOk();
         $response->assertSee('Może spodoba się także');
         $response->assertSee('Ebook drozszy');
-        $response->assertSee('39,99 PLN');
+        $response->assertSee("39,99\u{00A0}zł");
         $response->assertSee('Często kupowane razem');
         $response->assertSee('Ebook dodatkowy');
         $response->assertDontSee('Ebook szkic');
@@ -285,10 +285,10 @@ final class StorefrontPagesTest extends TestCase
         // Each variant block carries its OWN full axis combination as its show-if
         // condition — this is what lets the picker resolve to exactly one block.
         $response->assertSee('data-storefront-show-if="kolor:czerwony,rozmiar:s"', false);
-        $response->assertSee('80,00 PLN');
+        $response->assertSee("80,00\u{00A0}zł");
         $response->assertSee('data-storefront-show-if="kolor:niebieski,rozmiar:m"', false);
-        $response->assertSee('150,00 PLN');
-        $response->assertSee('99,00 PLN');
+        $response->assertSee("150,00\u{00A0}zł");
+        $response->assertSee("99,00\u{00A0}zł");
     }
 
     /**
@@ -533,7 +533,7 @@ final class StorefrontPagesTest extends TestCase
     {
         $product = $this->createDigitalProduct('Ebook szczegoly', '19.99');
 
-        $this->get('/pl/products/'.$product['slug'])->assertOk()->assertSee('Ebook szczegoly')->assertSee('19,99 PLN');
+        $this->get('/pl/products/'.$product['slug'])->assertOk()->assertSee('Ebook szczegoly')->assertSee("19,99\u{00A0}zł");
         $this->get('/pl/products/nie-istnieje')->assertNotFound();
     }
 
@@ -717,14 +717,22 @@ final class StorefrontPagesTest extends TestCase
         $this->assertContains('core.bank_transfer', array_column($methods, 'id'));
 
         $hash = (string) $this->getJson("/checkout/{$draftId}")->assertOk()->json('price.hash');
-        $orderId = (string) $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $hash, 'payment_method_id' => 'core.bank_transfer'])
-            ->assertOk()->json('order.id');
+        $placed = $this->postJson("/checkout/{$draftId}/confirm", ['price_hash' => $hash, 'payment_method_id' => 'core.bank_transfer'])
+            ->assertOk();
+        $orderId = (string) $placed->json('order.id');
+        $orderNumber = (string) $placed->json('order.number');
+        $this->assertMatchesRegularExpression('/^\d{4,}$/', $orderNumber);
 
         $confirmation = $this->get("/pl/checkout/{$draftId}/thank-you")->assertOk();
-        $confirmation->assertSee($orderId);
+        $confirmation->assertSee($orderNumber);
+        $confirmation->assertDontSee($orderId);
         $confirmation->assertSee('PL00 1111 2222 3333');
+        $confirmation->assertSee('Przelew tradycyjny');
+        $confirmation->assertDontSee('core.bank_transfer');
+        $confirmation->assertSee("30,00\u{00A0}zł")->assertSee('Dane zamawiającego')->assertDontSee('Adres dostawy');
 
         $email = EmailMessage::query()->where('definition_key', 'core.order_placed')->where('source_id', $orderId)->firstOrFail();
+        $this->assertSame("30,00\u{00A0}zł", $email->variables['total_formatted']);
         $guestOrderUrl = (string) $email->variables['order_url'];
         $guestOrderPath = (string) parse_url($guestOrderUrl, PHP_URL_PATH);
         $guestToken = basename($guestOrderPath);
@@ -736,7 +744,7 @@ final class StorefrontPagesTest extends TestCase
         $this->defaultCookies = [];
         $this->unencryptedCookies = [];
         $this->get("/pl/checkout/{$draftId}/thank-you")->assertNotFound();
-        $this->get($guestOrderPath)->assertOk()->assertSee($orderId);
+        $this->get($guestOrderPath)->assertOk()->assertSee($orderNumber);
     }
 
     public function test_customer_sees_own_orders_but_not_another_customers(): void

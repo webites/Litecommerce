@@ -8,6 +8,7 @@ final readonly class PlacedOrderData
 {
     public function __construct(
         public string $id,
+        public string $number,
         public string $status,
         public string $paymentStatus,
         public string $paymentMethodId,

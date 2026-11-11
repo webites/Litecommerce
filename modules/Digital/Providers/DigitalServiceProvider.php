@@ -38,10 +38,10 @@ final class DigitalServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'digital');
         $this->commands([ScrubDownloadAttemptsCommand::class, AnonymizeExpiredGrantsCommand::class]);
 
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.digital.scrub_download_attempts', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.digital.scrub_download_attempts', 86400, label: 'digital::tasks.scrub_download_attempts', handler: static function (): void {
             Artisan::call('digital:scrub-download-attempts');
         });
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.digital.anonymize_expired_grants', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.digital.anonymize_expired_grants', 86400, label: 'digital::tasks.anonymize_expired_grants', handler: static function (): void {
             Artisan::call('digital:anonymize-expired-grants');
         });
     }

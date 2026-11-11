@@ -31,6 +31,15 @@ final class CountryDirectory
         return $countries;
     }
 
+    /** Localized country name; an unknown code is returned unchanged. */
+    public function nameOf(string $code, string $locale): string
+    {
+        $code = strtoupper(trim($code));
+        $name = preg_match('/^[A-Z]{2}$/', $code) === 1 ? \Locale::getDisplayRegion("und-{$code}", $locale) : '';
+
+        return $name === '' || $name === $code ? $code : $name;
+    }
+
     private function flagFor(string $code): string
     {
         $flag = '';

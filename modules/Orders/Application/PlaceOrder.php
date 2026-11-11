@@ -35,6 +35,7 @@ final class PlaceOrder implements OrderPlacer
         private readonly OrderProjector $projector,
         private readonly OrderEmailComposer $emails,
         private readonly ProductTypeRegistry $productTypes,
+        private readonly OrderNumberAllocator $numbers,
     ) {}
 
     public function place(PlaceOrderData $data): PlacedOrderData
@@ -51,9 +52,7 @@ final class PlaceOrder implements OrderPlacer
                 'bank_transfer' => $now->copy()->addDays((int) config('orders.bank_transfer_deadline_days', 5)),
                 default => null,
             };
-            // Keep the stock hold through the one permitted uncertainty
-            // extension. At the initial online deadline Payments queries the
-            // provider before any traffic-driven Warehouse sweep can release it.
+            // Online reservations outlive the payment deadline by the one allowed uncertainty extension.
             $reservationDeadline = $data->paymentKind === 'online' && $deadline !== null
                 ? $deadline->copy()->addMinutes((int) config('orders.uncertain_payment_extension_minutes', 15))
                 : $deadline;
@@ -93,14 +92,7 @@ final class PlaceOrder implements OrderPlacer
                 ]);
             }
 
-            // Coupon reservations before stock — the fixed lock order from
-            // "Operacje blokują w stałej kolejności: zamówienie, próby
-            // płatności, rezerwacje kuponów, pozycje magazynowe"
-            // (05-orders.md), kept consistent everywhere a single
-            // operation touches both (see also ManageOrderPayment and
-            // Returns\Application\DecideReturnLines) so two concurrent
-            // operations can never deadlock by acquiring the two lock
-            // types in opposite orders.
+            // Coupons are reserved before stock to keep one lock order across operations.
             foreach ($data->couponUsages as $usage) {
                 $usageRow = OrderCouponUsage::query()->create([
                     'order_id' => $id, 'coupon_code' => $usage['code'],
@@ -135,13 +127,7 @@ final class PlaceOrder implements OrderPlacer
                 ];
             }
 
-            // Reserved in ascending variant_id order, decoupled from cart/display order
-            // above — two concurrent orders sharing the same two physical variants added
-            // in opposite order would otherwise lock their stock_items rows in opposite
-            // order too, the classic circular-wait deadlock. A fixed, global order across
-            // every order rules that out (same principle as "coupons before stock" above,
-            // just one level down within stock itself). Load-tested: see
-            // docs/knowledge-base/10-operations.md "Testy obciążeniowe".
+            // Stock is reserved in ascending variant order so concurrent orders cannot deadlock.
             $physicalLines = array_values(array_filter(
                 $lines,
                 fn (array $entry): bool => $this->productTypes->get($entry['data']->productType)->tracksStock,
@@ -161,10 +147,7 @@ final class PlaceOrder implements OrderPlacer
                 }
             }
 
-            // A 'free' order (fully covered by coupons) is paid the instant it is placed —
-            // no separate PaymentConfirmed event ever fires for it, so this is the only
-            // grant opportunity. Every other payment kind grants later, from
-            // ManageOrderPayment::confirm()'s 'confirmed' outcome.
+            // A free order is paid on placement, so this is its only chance to grant digital access.
             $digitalGrants = [];
             if (! $data->testMode && $alreadyPaid) {
                 foreach ($lines as $entry) {
@@ -177,6 +160,9 @@ final class PlaceOrder implements OrderPlacer
                 }
             }
 
+            $number = $this->numbers->next();
+            $order->update(['number' => $number['number'], 'public_number' => $number['label']]);
+
             OrderStatusHistory::query()->create([
                 'order_id' => $id, 'old_status' => null, 'new_status' => $order->status,
                 'actor_type' => 'system', 'occurred_at' => $now,
@@ -184,9 +170,7 @@ final class PlaceOrder implements OrderPlacer
             ]);
             $this->outbox($order, 'OrderPlaced', ['payment_method_id' => $data->paymentMethodId]);
 
-            // Plugin-facing, in-request notification — fires only once the
-            // transaction actually commits ("Zdarzenia po commit",
-            // 08-extensions.md), never on a rollback.
+            // Plugins are notified only after the transaction commits, never on a rollback.
             DB::afterCommit(fn () => CommittedEvent::dispatch(new OrderPlaced($id)));
 
             $this->emails->orderPlaced($order);

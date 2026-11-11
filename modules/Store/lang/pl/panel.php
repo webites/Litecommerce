@@ -13,6 +13,8 @@ return [
         'remove_logo' => 'Usuń logo',
         'blog_enabled' => 'Blog jest publicznie dostępny',
         'products_per_page' => 'Liczba produktów na stronę',
+        'timezone' => 'Strefa czasowa sklepu',
+        'timezone_help' => 'Według niej storefront, e-maile i panel pokazują daty oraz godziny. Zapisane dane pozostają w UTC.',
         'products_per_page_help' => 'Dotyczy listingu produktów i wyników filtrowania. Dozwolony zakres: 1–100.',
         'save' => 'Zapisz ustawienia',
         'loading' => 'Ładowanie ustawień…',

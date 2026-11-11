@@ -3,13 +3,14 @@ import Button from '@/Components/ui/Button';
 import Card from '@/Components/ui/Card';
 import Checkbox from '@/Components/ui/Checkbox';
 import Input from '@/Components/ui/Input';
+import Select from '@/Components/ui/Select';
 import SingleImageUpload from '@/Components/ui/SingleImageUpload';
 import { useTranslate } from '@/lib/i18n';
 import { useForm, usePage } from '@inertiajs/react';
 
-export default function General({ settings }) {
+export default function General({ settings, timezones = [] }) {
     const { flash } = usePage().props;
-    const form = useForm({ store_name: settings.store_name, blog_enabled: settings.blog_enabled, products_per_page: settings.products_per_page });
+    const form = useForm({ store_name: settings.store_name, blog_enabled: settings.blog_enabled, products_per_page: settings.products_per_page, timezone: settings.timezone });
     const logoForm = useForm({ logo: null });
     const t = useTranslate();
     const uploadLogo = (file) => {
@@ -25,6 +26,7 @@ export default function General({ settings }) {
                 <div><div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{t('store.settings.logo')}</div><SingleImageUpload label={settings.logo_url ? t('store.settings.change_logo') : t('store.settings.add_logo')} removeLabel={t('store.settings.remove_logo')} imageUrl={settings.logo_url} uploading={logoForm.processing} onUpload={uploadLogo} onRemove={() => logoForm.delete(route('panel.settings.logo.destroy'), { preserveScroll: true })} />{logoForm.errors.logo && <div style={{ color: 'var(--danger-text)', fontSize: 12, marginTop: 6 }}>{logoForm.errors.logo}</div>}</div>
                 <Checkbox label={t('store.settings.blog_enabled')} checked={form.data.blog_enabled} onChange={(checked) => form.setData('blog_enabled', checked)} />
                 <Input type="number" label={t('store.settings.products_per_page')} helpText={t('store.settings.products_per_page_help')} value={form.data.products_per_page} error={form.errors.products_per_page} min={1} max={100} required onChange={(event) => form.setData('products_per_page', event.target.value)} />
+                <Select label={t('store.settings.timezone')} helpText={t('store.settings.timezone_help')} value={form.data.timezone} error={form.errors.timezone} options={timezones.map((zone) => ({ value: zone, label: zone }))} required onChange={(event) => form.setData('timezone', event.target.value)} />
                 <div><Button type="submit" loading={form.processing}>{t('store.settings.save')}</Button></div>
             </form>
         </Card>

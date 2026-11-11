@@ -30,6 +30,7 @@ return [
     'delivery_line_suffix' => ' — dostawa',
     'total' => 'Razem',
     'shipping_address' => 'Adres dostawy',
+    'buyer_details' => 'Dane zamawiającego',
     'delivery_method' => 'Metoda dostawy',
     'no_delivery_digital' => 'Bez dostawy (produkt cyfrowy)',
     'payment' => 'Płatność',

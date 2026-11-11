@@ -25,7 +25,7 @@ final class ReturnsServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'returns');
         $this->commands([AnonymizeExpiredReturnsCommand::class]);
 
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.returns.anonymize_expired', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.returns.anonymize_expired', 86400, label: 'returns::tasks.anonymize_expired', handler: static function (): void {
             Artisan::call('returns:anonymize-expired');
         });
     }

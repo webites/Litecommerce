@@ -9,6 +9,7 @@ return [
     'unpaid_order_cancelled' => 'The unpaid order has been cancelled.',
     'payment_attempt_created' => 'A new payment attempt has been created.',
     'status_changed' => 'The order status has been changed.',
+    'reopen_not_confirmed' => 'A cancelled order can only be reopened after confirming the warning.',
     'note_added' => 'The note has been added.',
     'message_queued' => 'The message to the customer has been queued.',
     'not_found' => 'The order was not found.',

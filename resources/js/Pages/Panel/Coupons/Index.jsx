@@ -13,6 +13,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Plus, Ticket } from 'lucide-react';
+import { formatMoney as money } from '@/lib/money';
+import { formatDate } from '@/lib/format';
 
 function statusBadge(coupon, t) {
     if (coupon.is_expired) return <Badge tone="neutral" dot>{t('coupons.status_badges.expired')}</Badge>;
@@ -72,10 +74,10 @@ export default function Index({ coupons, base_currency_code: baseCurrencyCode, s
                                     { header: t('coupons.list.column_code'), render: (c) => <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{c.code}</span> },
                                     {
                                         header: t('coupons.list.column_available_balance'), align: 'right',
-                                        render: (c) => `${c.available_balance} ${baseCurrencyCode ?? ''}`,
+                                        render: (c) => money(c.available_balance, baseCurrencyCode),
                                     },
                                     { header: t('coupons.list.column_status'), render: (c) => statusBadge(c, t) },
-                                    { header: t('coupons.list.column_valid_until'), render: (c) => (c.expires_at ? new Date(c.expires_at).toLocaleDateString('pl-PL') : t('coupons.fields.valid_until_unlimited')) },
+                                    { header: t('coupons.list.column_valid_until'), render: (c) => formatDate(c.expires_at, t('coupons.fields.valid_until_unlimited')) },
                                     { header: t('coupons.list.column_account'), render: (c) => c.customer_email ?? t('coupons.list.column_account_any') },
                                     { header: t('coupons.list.column_pin'), render: (c) => (c.has_pin ? (c.pin_locked ? <Badge tone="danger">{t('coupons.status_badges.blocked')}</Badge> : <Badge tone="brand">{t('coupons.fields.pin')}</Badge>) : '—') },
                                     {

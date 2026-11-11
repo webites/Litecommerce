@@ -9,6 +9,7 @@ return [
     'unpaid_order_cancelled' => 'Niezapłacone zamówienie zostało anulowane.',
     'payment_attempt_created' => 'Utworzono nową próbę płatności.',
     'status_changed' => 'Status zamówienia został zmieniony.',
+    'reopen_not_confirmed' => 'Anulowane zamówienie można wznowić tylko po potwierdzeniu ostrzeżenia.',
     'note_added' => 'Notatka została dodana.',
     'message_queued' => 'Wiadomość do klienta została dodana do kolejki.',
     'not_found' => 'Zamówienie nie zostało znalezione.',

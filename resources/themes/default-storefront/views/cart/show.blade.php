@@ -47,8 +47,8 @@
                                             <button type="button" data-storefront-step="1" aria-label="{{ trans('cart::cart.increase_quantity') }}">+</button>
                                         </div>
                                     </td>
-                                    <td class="mono" data-field="unit_amount"></td>
-                                    <td class="mono" data-field="line_gross_amount"></td>
+                                    <td class="mono" data-field="unit_amount_formatted"></td>
+                                    <td class="mono" data-field="line_gross_amount_formatted"></td>
                                     <td><button type="button" class="remove-btn" data-storefront-action="delete" data-storefront-url="/cart/items/{variant_id}">{{ trans('cart::cart.remove') }}</button></td>
                                 </tr>
                             </template>
@@ -71,7 +71,7 @@
                     <ul class="coupon-list" data-storefront-slot="coupons">
                         <template data-storefront-list="coupons">
                             <li data-field-attr="code:data-code">
-                                <span><span class="code" data-field="code"></span> (<span data-field="status"></span>) — <span data-field="allocated_amount"></span></span>
+                                <span><span class="code" data-field="code"></span> (<span data-field="status"></span>) — <span data-field="allocated_amount_formatted"></span></span>
                                 <button type="button" class="remove-btn" data-storefront-action="delete" data-storefront-url="/cart/coupons/{code}">{{ trans('cart::cart.remove') }}</button>
                             </li>
                         </template>
@@ -80,9 +80,9 @@
             </div>
 
             <div class="card summary">
-                <div class="summary-line"><span>{{ trans('cart::cart.subtotal') }}</span><span class="val" data-field="subtotal_gross_amount"></span></div>
-                <div class="summary-line"><span>{{ trans('cart::cart.discount') }}</span><span class="val" data-field="discount_amount"></span></div>
-                <div class="summary-total"><span>{{ trans('cart::cart.total') }}</span><span class="val" data-field="total_gross_amount"></span></div>
+                <div class="summary-line"><span>{{ trans('cart::cart.subtotal') }}</span><span class="val" data-field="subtotal_gross_amount_formatted"></span></div>
+                <div class="summary-line"><span>{{ trans('cart::cart.discount') }}</span><span class="val" data-field="discount_amount_formatted"></span></div>
+                <div class="summary-total"><span>{{ trans('cart::cart.total') }}</span><span class="val" data-field="total_gross_amount_formatted"></span></div>
                 <a class="btn btn-primary btn-block" style="margin-top: 18px;" href="{{ route('storefront.checkout.show', ['locale' => $locale]) }}">{{ trans('cart::cart.go_to_checkout') }}</a>
             </div>
         </div>

@@ -7,6 +7,7 @@ namespace Litecommerce\Modules\Scheduler\Application;
 use DateTimeImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Lang;
 use Litecommerce\Modules\Scheduler\Contracts\ScheduledTaskRegistry;
 use Litecommerce\Modules\Scheduler\Contracts\SchedulerStatus;
 use Litecommerce\Modules\Scheduler\Contracts\SchedulerStatusData;
@@ -20,7 +21,11 @@ final class ReadSchedulerStatus implements SchedulerStatus
     public function current(): SchedulerStatusData
     {
         $mode = (string) config('scheduler.mode', 'traffic');
-        $keys = array_map(static fn ($definition): string => $definition->key, $this->registry->all());
+        $definitions = [];
+        foreach ($this->registry->all() as $definition) {
+            $definitions[$definition->key] = $definition;
+        }
+        $keys = array_keys($definitions);
         $rows = ScheduledTask::query()->whereIn('key', $keys)->orderBy('key')->get()->keyBy('key');
 
         $tasks = [];
@@ -32,6 +37,7 @@ final class ReadSchedulerStatus implements SchedulerStatus
             }
             $tasks[] = new SchedulerTaskStatus(
                 $key,
+                $this->nameOf($definitions[$key]->label, $key),
                 $row->interval_seconds,
                 $row->status,
                 $this->immutable($row->next_run_at),
@@ -56,6 +62,15 @@ final class ReadSchedulerStatus implements SchedulerStatus
             $tasks,
             $cronSeen === null ? null : Carbon::parse($cronSeen)->toDateTimeImmutable(),
         );
+    }
+
+    private function nameOf(string $label, string $key): string
+    {
+        if ($label === '') {
+            return $key;
+        }
+
+        return Lang::has($label) ? (string) trans($label) : $label;
     }
 
     /** @param list<SchedulerTaskStatus> $tasks */

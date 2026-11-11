@@ -51,8 +51,9 @@ final class DeliveryPanelTest extends TestCase
         $methodId = (int) DB::table('delivery_methods')->value('id');
         $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'kind' => 'flat_rate', 'supports_cash_on_delivery' => true]);
 
-        $this->actingAs($staff)->put(route('panel.delivery.region-rules.update', $methodId), [
-            'rules' => [
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [
+            ...self::FLAT_RATE,
+            'region_rules' => [
                 ['rule_type' => 'country_rate', 'country_code' => 'PL', 'continent_code' => null, 'price_amount' => '14.99', 'currency_overrides' => []],
                 ['rule_type' => 'exclude', 'country_code' => 'RU', 'continent_code' => null, 'price_amount' => null, 'currency_overrides' => []],
             ],
@@ -62,17 +63,50 @@ final class DeliveryPanelTest extends TestCase
         $this->assertDatabaseHas('delivery_region_rules', ['delivery_method_id' => $methodId, 'rule_type' => 'exclude', 'country_code' => 'RU']);
     }
 
+    public function test_a_courier_method_is_created_together_with_its_region_rates(): void
+    {
+        $staff = StaffAccount::factory()->create();
+
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [
+            ...self::FLAT_RATE,
+            'region_rules' => [['rule_type' => 'country_rate', 'country_code' => 'PL', 'continent_code' => null, 'price_amount' => '12', 'currency_overrides' => []]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, DB::table('delivery_region_rules')->count());
+
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [
+            ...self::FLAT_RATE, 'name' => 'Bez ceny',
+            'region_rules' => [['rule_type' => 'country_rate', 'country_code' => 'PL', 'continent_code' => null, 'price_amount' => null, 'currency_overrides' => []]],
+        ])->assertSessionHasErrors('region_rules');
+        $this->assertDatabaseMissing('delivery_methods', ['name' => 'Bez ceny']);
+    }
+
+    public function test_a_region_rule_without_its_country_or_continent_is_rejected(): void
+    {
+        $staff = StaffAccount::factory()->create();
+
+        foreach ([
+            ['rule_type' => 'country_rate', 'country_code' => null, 'continent_code' => null, 'price_amount' => '5', 'currency_overrides' => []],
+            ['rule_type' => 'exclude', 'country_code' => null, 'continent_code' => null, 'price_amount' => null, 'currency_overrides' => []],
+            ['rule_type' => 'continent_rate', 'country_code' => null, 'continent_code' => null, 'price_amount' => '5', 'currency_overrides' => []],
+        ] as $rule) {
+            $this->actingAs($staff)->post(route('panel.delivery.store'), [...self::FLAT_RATE, 'region_rules' => [$rule]])->assertSessionHasErrors();
+        }
+
+        $this->assertDatabaseCount('delivery_methods', 0);
+    }
+
     public function test_a_rate_rule_without_a_price_is_rejected(): void
     {
         $staff = StaffAccount::factory()->create();
         $this->actingAs($staff)->post(route('panel.delivery.store'), ['kind' => 'flat_rate', 'name' => 'Kurier', 'active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false]);
         $methodId = (int) DB::table('delivery_methods')->value('id');
 
-        $response = $this->actingAs($staff)->put(route('panel.delivery.region-rules.update', $methodId), [
-            'rules' => [['rule_type' => 'country_rate', 'country_code' => 'PL', 'continent_code' => null, 'price_amount' => null, 'currency_overrides' => []]],
+        $response = $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [
+            ...self::FLAT_RATE,
+            'region_rules' => [['rule_type' => 'country_rate', 'country_code' => 'PL', 'continent_code' => null, 'price_amount' => null, 'currency_overrides' => []]],
         ]);
 
-        $response->assertSessionHasErrors('rules');
+        $response->assertSessionHasErrors('region_rules');
         $this->assertDatabaseMissing('delivery_region_rules', ['delivery_method_id' => $methodId]);
     }
 
@@ -87,6 +121,8 @@ final class DeliveryPanelTest extends TestCase
 
         $this->assertDatabaseHas('delivery_methods', ['kind' => 'flat_rate', 'supports_pay_on_pickup' => false]);
     }
+
+    private const FLAT_RATE = ['kind' => 'flat_rate', 'name' => 'Kurier', 'active' => true, 'supports_cash_on_delivery' => true, 'supports_pay_on_pickup' => false];
 
     private const FIRST_POINT = [
         'name' => 'Sklep centralny', 'country_code' => 'PL', 'postal_code' => '00-001',
@@ -130,9 +166,76 @@ final class DeliveryPanelTest extends TestCase
         $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), $payload)->assertSessionHasErrors('active');
         $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'active' => false]);
 
-        $this->actingAs($staff)->post(route('panel.delivery.pickup-points.store', $methodId), self::FIRST_POINT)->assertSessionHasNoErrors();
-        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), $payload)->assertSessionHasNoErrors();
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [...$payload, 'pickup_points' => [self::FIRST_POINT]])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'active' => true]);
+        $this->assertDatabaseHas('delivery_pickup_points', ['delivery_method_id' => $methodId, 'name' => 'Sklep centralny']);
+    }
+
+    public function test_one_save_updates_the_method_overrides_regions_and_points_together(): void
+    {
+        $staff = StaffAccount::factory()->create();
+        DB::table('shop_currencies')->insert(['code' => 'EUR', 'name' => 'Euro', 'symbol' => '€', 'decimal_places' => 2, 'is_base' => false, 'created_at' => now(), 'updated_at' => now()]);
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [
+            'kind' => 'pickup', 'name' => 'Odbiór', 'active' => true, 'price_amount' => '0',
+            'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false, 'pickup_point' => self::FIRST_POINT,
+        ])->assertSessionHasNoErrors();
+        $methodId = (int) DB::table('delivery_methods')->value('id');
+        $keptId = (int) DB::table('delivery_pickup_points')->value('id');
+
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [
+            'kind' => 'pickup', 'name' => 'Odbiór w sklepie', 'active' => true, 'price_amount' => '5',
+            'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => true, 'pickup_deadline_days' => 7,
+            'currency_overrides' => [['currency_code' => 'EUR', 'price_amount' => '1.5', 'free_threshold_amount' => null]],
+            'pickup_points' => [
+                [...self::FIRST_POINT, 'id' => $keptId, 'name' => 'Sklep po zmianie'],
+                [...self::FIRST_POINT, 'name' => 'Drugi punkt', 'city' => 'Kraków'],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'name' => 'Odbiór w sklepie', 'pickup_deadline_days' => 7, 'supports_pay_on_pickup' => true]);
+        $this->assertDatabaseHas('delivery_method_currency_overrides', ['delivery_method_id' => $methodId, 'currency_code' => 'EUR']);
+        $this->assertDatabaseHas('delivery_pickup_points', ['id' => $keptId, 'name' => 'Sklep po zmianie']);
+        $this->assertDatabaseHas('delivery_pickup_points', ['delivery_method_id' => $methodId, 'name' => 'Drugi punkt', 'city' => 'Kraków']);
+        $this->assertSame(2, DB::table('delivery_pickup_points')->where('delivery_method_id', $methodId)->count());
+
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [
+            'kind' => 'pickup', 'name' => 'Odbiór w sklepie', 'active' => true, 'price_amount' => '5',
+            'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => true,
+            'pickup_points' => [[...self::FIRST_POINT, 'id' => $keptId]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame([$keptId], DB::table('delivery_pickup_points')->where('delivery_method_id', $methodId)->pluck('id')->map(fn ($id): int => (int) $id)->all());
+    }
+
+    public function test_an_invalid_section_saves_nothing_and_an_active_pickup_method_needs_an_active_point(): void
+    {
+        $staff = StaffAccount::factory()->create();
+        $this->actingAs($staff)->post(route('panel.delivery.store'), [
+            'kind' => 'pickup', 'name' => 'Odbiór', 'active' => true, 'price_amount' => '0',
+            'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false, 'pickup_point' => self::FIRST_POINT,
+        ])->assertSessionHasNoErrors();
+        $methodId = (int) DB::table('delivery_methods')->value('id');
+        $base = ['kind' => 'pickup', 'name' => 'Zmieniona', 'active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false];
+
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [...$base, 'pickup_points' => [[...self::FIRST_POINT, 'city' => '']]])->assertSessionHasErrors('pickup_points.0.city');
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [...$base, 'pickup_points' => [[...self::FIRST_POINT, 'active' => false]]])->assertSessionHasErrors('active');
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodId), [...$base, 'pickup_points' => []])->assertSessionHasErrors('active');
+        $this->assertDatabaseHas('delivery_methods', ['id' => $methodId, 'name' => 'Odbiór']);
+        $this->assertSame(1, DB::table('delivery_pickup_points')->where('delivery_method_id', $methodId)->count());
+    }
+
+    public function test_a_pickup_point_of_another_method_cannot_be_edited_through_this_one(): void
+    {
+        $staff = StaffAccount::factory()->create();
+        $this->actingAs($staff)->post(route('panel.delivery.store'), ['kind' => 'pickup', 'name' => 'A', 'active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false, 'pickup_point' => self::FIRST_POINT]);
+        $this->actingAs($staff)->post(route('panel.delivery.store'), ['kind' => 'pickup', 'name' => 'B', 'active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false, 'pickup_point' => [...self::FIRST_POINT, 'name' => 'Punkt B']]);
+        $methodA = (int) DB::table('delivery_methods')->where('name', 'A')->value('id');
+        $foreignPoint = (int) DB::table('delivery_pickup_points')->where('name', 'Punkt B')->value('id');
+
+        $this->actingAs($staff)->put(route('panel.delivery.update', $methodA), [
+            'kind' => 'pickup', 'name' => 'A', 'active' => true, 'supports_cash_on_delivery' => false, 'supports_pay_on_pickup' => false,
+            'pickup_points' => [[...self::FIRST_POINT, 'id' => $foreignPoint, 'name' => 'Przejęty']],
+        ])->assertSessionHasErrors('pickup_points.0.id');
+        $this->assertDatabaseHas('delivery_pickup_points', ['id' => $foreignPoint, 'name' => 'Punkt B']);
     }
 
     public function test_the_pickup_deadline_is_kept_only_for_pickup_methods_and_validated(): void

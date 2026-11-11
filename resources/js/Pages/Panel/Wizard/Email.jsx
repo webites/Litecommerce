@@ -25,7 +25,7 @@ export default function Email({ steps, skippable, storeName, adminEmail }) {
             skippable={skippable}
             title={t('setup.email.title', 'E-mail sending')}
             description={t('setup.email.description', 'Order confirmations, password resets and other messages are sent through your SMTP server. Until it is set up, no e-mails leave the store.')}
-            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store')); }}
+            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store', { step: 'email' })); }}
             processing={processing}
         >
             <div style={{ display: 'flex', gap: 12 }}>

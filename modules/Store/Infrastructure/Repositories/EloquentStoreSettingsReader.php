@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Litecommerce\Modules\Store\Infrastructure\Repositories;
 
+use DateTimeZone;
 use Illuminate\Support\Facades\Schema;
 use Litecommerce\Modules\Cache\Contracts\ObjectCache;
 use Litecommerce\Modules\Media\Contracts\MediaLibrary;
@@ -39,6 +40,7 @@ final readonly class EloquentStoreSettingsReader implements StoreSettingsReader
             logoHeight: is_int($values['logo_height']) ? $values['logo_height'] : null,
             blogEnabled: (bool) $values['blog_enabled'],
             catalogProductsPerPage: (int) $values['catalog_products_per_page'],
+            timezone: (string) $values['timezone'],
         );
     }
 
@@ -60,6 +62,7 @@ final readonly class EloquentStoreSettingsReader implements StoreSettingsReader
         $logo = $values[StoreSettingKeys::StoreLogoMediaId] ?? null;
         $blogEnabled = $values[StoreSettingKeys::BlogEnabled] ?? true;
         $catalogProductsPerPage = $values[StoreSettingKeys::CatalogProductsPerPage] ?? 24;
+        $timezone = $values[StoreSettingKeys::Timezone] ?? null;
         $logoId = is_int($logo) ? $logo : null;
         $logoMedia = $logoId === null ? null : $this->media->find($logoId);
 
@@ -74,6 +77,7 @@ final readonly class EloquentStoreSettingsReader implements StoreSettingsReader
             'catalog_products_per_page' => is_int($catalogProductsPerPage)
                 ? max(1, min(100, $catalogProductsPerPage))
                 : 24,
+            'timezone' => is_string($timezone) && in_array($timezone, DateTimeZone::listIdentifiers(), true) ? $timezone : $this->defaultTimezone(),
         ];
     }
 
@@ -89,6 +93,12 @@ final readonly class EloquentStoreSettingsReader implements StoreSettingsReader
             'logo_height' => null,
             'blog_enabled' => true,
             'catalog_products_per_page' => 24,
+            'timezone' => $this->defaultTimezone(),
         ];
+    }
+
+    private function defaultTimezone(): string
+    {
+        return (string) config('app.timezone', 'UTC');
     }
 }

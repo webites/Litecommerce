@@ -39,7 +39,8 @@ final class MediaServiceProvider extends ServiceProvider
         $this->app->make(ScheduledTaskRegistry::class)->register(
             'core.media.verify_private_files',
             3600,
-            fn () => $this->app->make(VerifyPrivateFiles::class)->run((int) config('media.verify_batch', 10)),
+            label: 'media::tasks.verify_private_files',
+            handler: fn () => $this->app->make(VerifyPrivateFiles::class)->run((int) config('media.verify_batch', 10)),
         );
     }
 }

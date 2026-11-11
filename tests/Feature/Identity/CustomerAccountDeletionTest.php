@@ -162,7 +162,7 @@ final class CustomerAccountDeletionTest extends TestCase
         $otherCart = (int) DB::table('carts')->insertGetId(['customer_account_id' => $other->getKey(), 'currency_code' => 'PLN', 'status' => 'active', 'last_activity_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
         $orderId = (string) Str::uuid();
         DB::table('orders')->insert([
-            'id' => $orderId, 'customer_account_id' => $customer->getKey(), 'source_type' => 'test', 'source_id' => $orderId, 'status' => 'processing', 'payment_status' => 'paid',
+            'id' => $orderId, 'number' => crc32($orderId), 'public_number' => (string) crc32($orderId), 'customer_account_id' => $customer->getKey(), 'source_type' => 'test', 'source_id' => $orderId, 'status' => 'processing', 'payment_status' => 'paid',
             'payment_method_id' => 'core.bank_transfer', 'payment_kind' => 'bank_transfer', 'email' => 'buyer@example.com', 'currency_code' => 'PLN', 'mode' => 'live', 'locale' => 'pl',
             'total_net_amount' => '100', 'total_vat_amount' => '23', 'total_gross_amount' => '123', 'created_at' => now(), 'updated_at' => now(),
         ]);

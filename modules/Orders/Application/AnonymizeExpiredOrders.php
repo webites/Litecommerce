@@ -54,7 +54,7 @@ final class AnonymizeExpiredOrders
                 'shipping_address' => $this->keepCountry($party->shipping_address),
             ]);
             OrderNote::query()->where('order_id', $order->id)->update(['body' => '[usunięto]']);
-            OrderStatusHistory::query()->where('order_id', $order->id)->where('actor_type', 'staff')->update(['reason' => null]);
+            OrderStatusHistory::query()->where('order_id', $order->id)->where(fn ($rows) => $rows->where('actor_type', 'staff')->orWhereNull('old_status'))->update(['reason' => null]);
             GuestOrderAccessToken::query()->where('order_id', $order->id)->delete();
             OrderOutboxEvent::query()->create([
                 'id' => (string) Str::uuid(), 'order_id' => $order->id, 'event_type' => 'OrderPersonalDataAnonymized',

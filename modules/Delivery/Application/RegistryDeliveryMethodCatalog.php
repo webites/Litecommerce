@@ -27,7 +27,7 @@ use Throwable;
  * configured "core" ones and plugin ones) that the merchant has enabled and
  * that currently quotes, split into net/VAT/gross by the merchant-assigned
  * tax rate under the shop's current price entry mode. A method that throws
- * is unavailable, never a purchasable option — see 06-fulfillment.md.
+ * is unavailable, never a purchasable option.
  */
 final class RegistryDeliveryMethodCatalog implements DeliveryMethodCatalog
 {

@@ -9,7 +9,7 @@
                 </div>
             @endif
             @if ($post->publishedAt)
-                <time datetime="{{ $post->publishedAt }}">{{ \Illuminate\Support\Carbon::parse($post->publishedAt)->translatedFormat('j F Y') }}</time>
+                <time datetime="{{ $post->publishedAt }}">{{ formatDate($post->publishedAt) }}</time>
             @endif
             <h1>{{ $post->title }}</h1>
             @if (($props['show_excerpt'] ?? '1') === '1' && $post->excerpt)

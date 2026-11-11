@@ -24,14 +24,25 @@ final class ManageDeliveryMethods
     }
 
     /**
+     * Creates a method together with what makes it visible to customers: the first
+     * pickup point (pickup) or the region rates (courier).
+     *
      * @param  array<string, mixed>  $data
-     * @param  array<string, mixed>  $pickupPoint
+     * @param  array<string, mixed>|null  $pickupPoint
+     * @param  list<array{rule_type: string, country_code: ?string, continent_code: ?string, price_amount: ?string, currency_overrides: list<array{currency_code: string, price_amount: string}>}>|null  $regionRules
      */
-    public function createWithPickupPoint(array $data, array $pickupPoint): DeliveryMethod
+    public function createConfigured(array $data, ?array $pickupPoint, ?array $regionRules): DeliveryMethod
     {
-        return DB::transaction(function () use ($data, $pickupPoint): DeliveryMethod {
+        return DB::transaction(function () use ($data, $pickupPoint, $regionRules): DeliveryMethod {
             $method = $this->create($data);
-            $this->addPickupPoint($method, $pickupPoint);
+
+            if ($pickupPoint !== null) {
+                $this->addPickupPoint($method, $pickupPoint);
+            }
+
+            if ($regionRules !== null) {
+                $this->replaceRegionRules($method, $regionRules);
+            }
 
             return $method;
         });
@@ -43,6 +54,37 @@ final class ManageDeliveryMethods
         $method->update($this->methodAttributes($data));
 
         return $method->fresh();
+    }
+
+    /**
+     * Saves a method together with the sections the panel edits in the same form:
+     * currency overrides, region rules and pickup points. A null section is left
+     * untouched; a given pickup-point list is the full set (missing ids are deleted).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<array{currency_code: string, price_amount: ?string, free_threshold_amount: ?string}>|null  $currencyOverrides
+     * @param  list<array{rule_type: string, country_code: ?string, continent_code: ?string, price_amount: ?string, currency_overrides: list<array{currency_code: string, price_amount: string}>}>|null  $regionRules
+     * @param  list<array<string, mixed>>|null  $pickupPoints
+     */
+    public function save(DeliveryMethod $method, array $data, ?array $currencyOverrides, ?array $regionRules, ?array $pickupPoints): DeliveryMethod
+    {
+        return DB::transaction(function () use ($method, $data, $currencyOverrides, $regionRules, $pickupPoints): DeliveryMethod {
+            $this->update($method, $data);
+
+            foreach ($currencyOverrides ?? [] as $override) {
+                $this->setCurrencyOverride($method, strtoupper($override['currency_code']), $override['price_amount'] ?? null, $override['free_threshold_amount'] ?? null);
+            }
+
+            if ($regionRules !== null) {
+                $this->replaceRegionRules($method, $regionRules);
+            }
+
+            if ($pickupPoints !== null) {
+                $this->syncPickupPoints($method, $pickupPoints);
+            }
+
+            return $method->fresh();
+        });
     }
 
     public function delete(DeliveryMethod $method): void
@@ -101,17 +143,21 @@ final class ManageDeliveryMethods
         return $method->pickupPoints()->create($this->pickupPointAttributes($data));
     }
 
-    /** @param array<string, mixed> $data */
-    public function updatePickupPoint(DeliveryPickupPoint $point, array $data): DeliveryPickupPoint
+    /** @param list<array<string, mixed>> $points */
+    private function syncPickupPoints(DeliveryMethod $method, array $points): void
     {
-        $point->update($this->pickupPointAttributes($data));
+        $keptIds = array_values(array_filter(array_map(static fn (array $point): ?int => isset($point['id']) ? (int) $point['id'] : null, $points)));
+        $method->pickupPoints()->whereNotIn('id', $keptIds)->delete();
 
-        return $point->fresh();
-    }
+        foreach ($points as $position => $point) {
+            $attributes = $this->pickupPointAttributes([...$point, 'position' => $position]);
 
-    public function removePickupPoint(DeliveryPickupPoint $point): void
-    {
-        $point->delete();
+            if (isset($point['id'])) {
+                $method->pickupPoints()->whereKey((int) $point['id'])->firstOrFail()->update($attributes);
+            } else {
+                $method->pickupPoints()->create($attributes);
+            }
+        }
     }
 
     /** @param array<string, mixed> $data @return array<string, mixed> */

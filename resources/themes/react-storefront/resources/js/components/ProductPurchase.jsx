@@ -4,7 +4,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { currentLocale, t } from '../api';
 
-export default function ProductPurchase({ axes, offers, currencyCode, currencyDecimalPlaces, preselected, baseUrl, onAddToCart }) {
+export default function ProductPurchase({ axes, offers, preselected, baseUrl, onAddToCart }) {
     const [selected, setSelected] = useState(() => {
         const initial = {};
         for (const axis of axes) {
@@ -27,16 +27,6 @@ export default function ProductPurchase({ axes, offers, currencyCode, currencyDe
         () => offers.find((o) => o.optionSignature === signature) ?? offers.find((o) => o.optionSignature === '') ?? null,
         [offers, signature],
     );
-
-    const fmt = (n) =>
-        n == null
-            ? null
-            : new Intl.NumberFormat(currentLocale() === 'pl' ? 'pl-PL' : 'en-US', {
-                  minimumFractionDigits: currencyDecimalPlaces,
-                  maximumFractionDigits: currencyDecimalPlaces,
-              }).format(Number(n)) +
-              ' ' +
-              currencyCode;
 
     const bridgeRootRef = useRef(null);
 
@@ -155,13 +145,13 @@ export default function ProductPurchase({ axes, offers, currencyCode, currencyDe
                     <p className="sku-line">SKU: {offer.sku}</p>
 
                     <div className="price-block">
-                        {offer.promotionalActive && offer.promotionalUnitAmount != null ? (
+                        {offer.promotionalActive && offer.promotionalUnitAmountFormatted != null ? (
                             <>
-                                <span className="price-regular">{fmt(offer.regularUnitAmount)}</span>
-                                <span className="price-current price-promo">{fmt(offer.promotionalUnitAmount)}</span>
+                                <span className="price-regular">{offer.regularUnitAmountFormatted}</span>
+                                <span className="price-current price-promo">{offer.promotionalUnitAmountFormatted}</span>
                             </>
-                        ) : offer.unitAmount != null ? (
-                            <span className="price-current">{fmt(offer.unitAmount)}</span>
+                        ) : offer.unitAmountFormatted != null ? (
+                            <span className="price-current">{offer.unitAmountFormatted}</span>
                         ) : (
                             <span className="muted">{t('product.price_unavailable')}</span>
                         )}

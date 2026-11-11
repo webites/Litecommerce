@@ -27,6 +27,7 @@ use Litecommerce\Modules\Payments\Contracts\PaymentAttemptStarter;
 use Litecommerce\Modules\Payments\Contracts\PaymentAvailabilityContext;
 use Litecommerce\Modules\Payments\Contracts\PaymentMethodDescriptor;
 use Litecommerce\Modules\Payments\Contracts\PaymentMethodRegistry;
+use Litecommerce\Modules\Store\Contracts\MoneyFormatter;
 
 /**
  * The "Checkout" side of the module — see CartController for the cart
@@ -110,7 +111,7 @@ final class CheckoutController extends Controller
         return response()->json([
             ...$this->presentDraft($result->draft),
             'order' => $result->order === null ? null : [
-                'id' => $result->order->id, 'status' => $result->order->status,
+                'id' => $result->order->id, 'number' => $result->order->number, 'status' => $result->order->status,
                 'payment_status' => $result->order->paymentStatus,
             ],
             'payment' => $payment === null ? null : [
@@ -210,7 +211,7 @@ final class CheckoutController extends Controller
         );
         $deliveryDiscount = $priced->delivery === null ? '0' : $priced->delivery->couponDiscountAmount;
 
-        return [
+        return app(MoneyFormatter::class)->annotate([
             'hash' => $hash,
             'currency_code' => $priced->currencyCode,
             'lines' => array_map(fn ($line): array => [
@@ -254,7 +255,7 @@ final class CheckoutController extends Controller
             'grand_total_net_amount' => $priced->grandTotalNetAmount(),
             'grand_total_vat_amount' => $priced->grandTotalVatAmount(),
             'grand_total_gross_amount' => $priced->grandTotalGrossAmount(),
-        ];
+        ], $priced->currencyCode);
     }
 
     /** @return array<string, mixed> */

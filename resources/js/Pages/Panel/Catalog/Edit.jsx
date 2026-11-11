@@ -18,6 +18,7 @@ import { ChevronDown as MoveDown, ChevronUp as MoveUp, Plus, Trash2, X } from 'l
 import { useEffect, useState } from 'react';
 import ProductAttributes from './ProductAttributes';
 import ProductForm from './ProductForm';
+import { formatMoney as money } from '@/lib/money';
 
 export default function Edit({ product, languages, types, statuses, variantSeoModes, hasAxes, units, brands, categories, attributeGroups, variantAttributes, variants, maxVariants, productAttributes, images, relations, relationTypes, taxRates, baseCurrencyCode, currencies }) {
     const t = useTranslate();
@@ -378,17 +379,17 @@ export default function Edit({ product, languages, types, statuses, variantSeoMo
                                         {
                                             header: t('catalog.edit.column_net', 'Net (:currency)', { currency: baseCurrencyCode }),
                                             align: 'right',
-                                            render: (v) => v.price.base_quote?.net || '—',
+                                            render: (v) => money(v.price.base_quote?.net, baseCurrencyCode),
                                         },
                                         {
                                             header: t('catalog.edit.column_gross', 'Gross (:currency)', { currency: baseCurrencyCode }),
                                             align: 'right',
-                                            render: (v) => v.price.base_quote?.gross || '—',
+                                            render: (v) => money(v.price.base_quote?.gross, baseCurrencyCode),
                                         },
                                         {
                                             header: t('catalog.edit.column_promotion', 'Promotion'),
                                             align: 'right',
-                                            render: (v) => (v.price.base_quote?.promotional_active ? (v.price.promotional_amount || '—') : (v.price.promotional_amount ? t('catalog.edit.inactive', 'inactive') : '—')),
+                                            render: (v) => (v.price.base_quote?.promotional_active ? money(v.price.promotional_amount, baseCurrencyCode) : (v.price.promotional_amount ? t('catalog.edit.inactive', 'inactive') : '—')),
                                         },
                                         {
                                             header: t('catalog.edit.column_stock', 'Stock'),

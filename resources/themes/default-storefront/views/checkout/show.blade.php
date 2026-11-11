@@ -9,7 +9,7 @@
     {{-- Bootstraps (or resumes) the current cart's checkout draft, exposing its id as data-draft for the {draft} tokens below. --}}
     <div data-storefront-init="post" data-storefront-url="/checkout" data-storefront-expose="id:draft">
         <div class="layout-2col">
-            <form id="checkout-address-form" class="card form-card" data-storefront="ajax" data-storefront-method="put" data-storefront-url="/checkout/{draft}"
+            <form id="checkout-address-form" class="card form-card" data-storefront="ajax" data-storefront-autosave data-storefront-method="put" data-storefront-url="/checkout/{draft}"
                   data-storefront-success-message="{{ trans('cart::checkout.address_saved') }}">
                 <h3 class="section-h">{{ trans('cart::checkout.section_title') }}</h3>
                 <p class="section-sub">{{ trans('cart::checkout.section_sub') }}</p>
@@ -85,7 +85,7 @@
                                        data-field="method_id" data-field-attr="pickup_point_id:data-pickup-point-id"
                                        data-storefront-auto-submit data-storefront-preselect>
                                 <span class="left"><span class="radio-dot"></span><span><span data-field="label"></span><small class="radio-detail" data-field="detail" data-storefront-when="detail" hidden></small></span></span>
-                                <span class="price mono" data-field="gross_amount"></span>
+                                <span class="price mono" data-field="gross_amount_formatted"></span>
                             </label>
                         </template>
                     </div>
@@ -111,13 +111,13 @@
                 <form id="checkout-confirm-form" class="card summary" data-storefront="ajax" action="/checkout/{draft}/confirm" method="post"
                       data-storefront-redirect="/{locale}/checkout/{draft}/thank-you" data-storefront-refresh-on-error
                       data-storefront-load="/checkout/{draft}">
-                    <div class="summary-line"><span>{{ trans('cart::checkout.line_items_label') }}</span><span class="val" data-field="price.subtotal_gross_amount"></span></div>
-                    <div class="summary-line"><span>{{ trans('cart::checkout.delivery_label') }}</span><span class="val" data-field="price.delivery.selected.gross_amount"></span></div>
-                    <div class="summary-line"><span>{{ trans('cart::checkout.discount_label') }}</span><span class="val" data-field="price.discount_amount"></span></div>
+                    <div class="summary-line"><span>{{ trans('cart::checkout.line_items_label') }}</span><span class="val" data-field="price.subtotal_gross_amount_formatted"></span></div>
+                    <div class="summary-line"><span>{{ trans('cart::checkout.delivery_label') }}</span><span class="val" data-field="price.delivery.selected.gross_amount_formatted"></span></div>
+                    <div class="summary-line"><span>{{ trans('cart::checkout.discount_label') }}</span><span class="val" data-field="price.discount_amount_formatted"></span></div>
                     <template data-storefront-list="price.adjustments">
-                        <div class="summary-line"><span data-field="label"></span><span class="val" data-field="gross_amount"></span></div>
+                        <div class="summary-line"><span data-field="label"></span><span class="val" data-field="gross_amount_formatted"></span></div>
                     </template>
-                    <div class="summary-total"><span>{{ trans('cart::checkout.total_label') }}</span><span class="val" data-field="price.grand_total_gross_amount"></span></div>
+                    <div class="summary-total"><span>{{ trans('cart::checkout.total_label') }}</span><span class="val" data-field="price.grand_total_gross_amount_formatted"></span></div>
 
                     <p data-storefront-message role="alert" class="banner banner-error" style="margin-top: 18px;"></p>
 

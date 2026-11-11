@@ -18,6 +18,9 @@ return [
 
     'guest_cookie_ttl_days' => (int) env('CART_GUEST_COOKIE_TTL_DAYS', 30),
 
+    // Rejection codes that signal a broken checkout state rather than a customer mistake; they are written to the log.
+    'monitored_rejections' => ['delivery_method_required', 'pickup_point_required'],
+
     /*
     |--------------------------------------------------------------------------
     | Abandonment

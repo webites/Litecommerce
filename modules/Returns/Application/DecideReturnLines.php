@@ -207,6 +207,7 @@ final class DecideReturnLines
                     [
                         'store_name' => $this->store->current()->storeName,
                         'order_id' => $order->id,
+                        'order_number' => $order->number,
                         'decision' => trans('returns::panel.emails.return_decided.decision', [], $order->locale),
                         'details' => trans('returns::panel.emails.return_decided.details', ['approved' => $approvedTotal, 'rejected' => $rejectedTotal], $order->locale),
                         'order_url' => $url,

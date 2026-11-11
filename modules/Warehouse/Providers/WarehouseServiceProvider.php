@@ -42,7 +42,8 @@ final class WarehouseServiceProvider extends ServiceProvider
         $this->app->make(ScheduledTaskRegistry::class)->register(
             'core.warehouse.reconcile_expired_reservations',
             60,
-            fn () => $this->app->make(StockReservationManager::class)->reconcileExpiredReservations(
+            label: 'warehouse::tasks.reconcile_expired_reservations',
+            handler: fn () => $this->app->make(StockReservationManager::class)->reconcileExpiredReservations(
                 null,
                 (int) config('warehouse.reconcile_batch', 200),
             ),

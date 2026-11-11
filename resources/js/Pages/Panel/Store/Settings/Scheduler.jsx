@@ -8,10 +8,10 @@ import SettingsPageFrame from '@/Components/panel/SettingsPageFrame';
 import { useTranslate } from '@/lib/i18n';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { Clock } from 'lucide-react';
+import { formatDateTime } from '@/lib/format';
 
 const healthTone = { ok: 'success', pending: 'neutral', delayed: 'warning', failing: 'danger', disabled: 'warning' };
 
-const formatDate = (value) => (value ? new Date(value).toLocaleString() : null);
 
 export default function Scheduler({ mode, health, last_run_at: lastRunAt, system_cron_seen_at: cronSeenAt, cron_command: cronCommand, can_configure_cron: canConfigureCron, tasks, embedded = false }) {
     const t = useTranslate();
@@ -34,10 +34,15 @@ export default function Scheduler({ mode, health, last_run_at: lastRunAt, system
         return <Badge tone="success">{t('scheduler.task_ok')}</Badge>;
     };
     const columns = [
-        { header: t('scheduler.columns.task'), render: (task) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{task.key}</span> },
+        { header: t('scheduler.columns.task'), render: (task) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span>{task.name}</span>
+                {task.name !== task.key && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-tertiary)' }}>({task.key})</span>}
+            </div>
+        ) },
         { header: t('scheduler.columns.interval'), render: (task) => interval(task.interval_seconds) },
-        { header: t('scheduler.columns.next_run'), render: (task) => formatDate(task.next_run_at) ?? '–' },
-        { header: t('scheduler.columns.last_success'), render: (task) => formatDate(task.last_succeeded_at) ?? '–' },
+        { header: t('scheduler.columns.next_run'), render: (task) => formatDateTime(task.next_run_at, null) ?? '–' },
+        { header: t('scheduler.columns.last_success'), render: (task) => formatDateTime(task.last_succeeded_at, null) ?? '–' },
         { header: t('scheduler.columns.state'), render: state },
     ];
 
@@ -53,8 +58,8 @@ export default function Scheduler({ mode, health, last_run_at: lastRunAt, system
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             {t('scheduler.health_label')}: <Badge tone={healthTone[health] ?? 'neutral'}>{t(`scheduler.health.${health}`, health)}</Badge>
                         </div>
-                        <div>{t('scheduler.last_run')}: {formatDate(lastRunAt) ?? t('scheduler.never')}</div>
-                        <div>{t('scheduler.cron_seen')}: {formatDate(cronSeenAt) ?? t('scheduler.never')}</div>
+                        <div>{t('scheduler.last_run')}: {formatDateTime(lastRunAt, null) ?? t('scheduler.never')}</div>
+                        <div>{t('scheduler.cron_seen')}: {formatDateTime(cronSeenAt, null) ?? t('scheduler.never')}</div>
                     </div>
                 </Card>
                 <Alert tone={mode === 'traffic' && health === 'ok' ? 'info' : 'warning'} title={t('scheduler.limits_title')}>

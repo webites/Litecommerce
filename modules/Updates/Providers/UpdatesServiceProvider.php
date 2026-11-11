@@ -107,7 +107,7 @@ final class UpdatesServiceProvider extends ServiceProvider
 
         $this->app->make(PanelMessageRegistry::class)->register(UpdateMessages::SOURCE, fn (): array => $this->app->make(UpdateMessages::class)->messages());
 
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.updates.check_releases', 86400, function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.updates.check_releases', 86400, label: 'updates::tasks.check_releases', handler: function (): void {
             $updates = $this->app->make(UpdateChecker::class);
 
             if ($updates->status()->automaticChecks) {

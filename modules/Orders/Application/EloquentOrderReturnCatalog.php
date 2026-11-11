@@ -18,4 +18,13 @@ final class EloquentOrderReturnCatalog implements OrderReturnCatalog
 
         return $order === null ? null : $this->projector->returnable($order);
     }
+
+    public function numbersFor(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return [];
+        }
+
+        return Order::query()->whereIn('id', $orderIds)->pluck('public_number', 'id')->all();
+    }
 }

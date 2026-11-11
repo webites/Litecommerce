@@ -24,8 +24,6 @@ const purchaseRoot = document.getElementById('product-purchase-root');
 if (purchaseRoot) {
     const axes = JSON.parse(purchaseRoot.dataset.axes || '[]');
     const offers = JSON.parse(purchaseRoot.dataset.offers || '[]');
-    const currencyCode = purchaseRoot.dataset.currency || 'PLN';
-    const currencyDecimalPlaces = Number.parseInt(purchaseRoot.dataset.currencyDecimals || '2', 10);
     const preselected = JSON.parse(purchaseRoot.dataset.preselected || '{}');
     const baseUrl = purchaseRoot.dataset.baseUrl || '';
 
@@ -34,8 +32,6 @@ if (purchaseRoot) {
         <ProductPurchase
             axes={axes}
             offers={offers}
-            currencyCode={currencyCode}
-            currencyDecimalPlaces={currencyDecimalPlaces}
             preselected={preselected}
             baseUrl={baseUrl}
             onAddToCart={async (variantId, quantity) => {

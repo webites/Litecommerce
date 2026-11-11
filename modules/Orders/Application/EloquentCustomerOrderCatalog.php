@@ -23,7 +23,7 @@ final class EloquentCustomerOrderCatalog implements CustomerOrderCatalog
 
         return [
             'items' => $orders->map(static fn (Order $order): CustomerOrderSummaryData => new CustomerOrderSummaryData(
-                $order->id, $order->status, $order->payment_status,
+                $order->id, $order->public_number, $order->status, $order->payment_status,
                 (string) $order->total_gross_amount, $order->currency_code,
                 $order->created_at === null ? null : \DateTimeImmutable::createFromInterface($order->created_at),
                 (int) $order->lines_count,

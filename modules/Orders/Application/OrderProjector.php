@@ -20,7 +20,7 @@ final class OrderProjector
     public function placed(Order $order): PlacedOrderData
     {
         return new PlacedOrderData(
-            $order->id, $order->status, $order->payment_status, $order->payment_method_id,
+            $order->id, $order->public_number, $order->status, $order->payment_status, $order->payment_method_id,
             (string) $order->total_gross_amount, $order->currency_code,
             $order->payment_deadline_at === null ? null : \DateTimeImmutable::createFromInterface($order->payment_deadline_at),
         );
@@ -29,7 +29,7 @@ final class OrderProjector
     public function payment(Order $order): OrderPaymentData
     {
         return new OrderPaymentData(
-            $order->id, $order->status, $order->payment_status, $order->payment_method_id,
+            $order->id, $order->public_number, $order->status, $order->payment_status, $order->payment_method_id,
             (string) $order->total_gross_amount, $order->currency_code, $order->mode, $order->locale, $order->version,
             $order->payment_deadline_at === null ? null : \DateTimeImmutable::createFromInterface($order->payment_deadline_at),
         );
@@ -39,7 +39,7 @@ final class OrderProjector
     public function returnable(Order $order): OrderReturnableData
     {
         return new OrderReturnableData(
-            $order->id, $order->currency_code, $order->payment_status,
+            $order->id, $order->public_number, $order->currency_code, $order->payment_status,
             $order->paid_at === null ? null : \DateTimeImmutable::createFromInterface($order->paid_at),
             $order->mode, $order->locale, $order->customer_account_id, $order->email,
             $order->delivery === null ? null : (string) $order->delivery->net_amount,
@@ -59,7 +59,7 @@ final class OrderProjector
         $party = $order->party;
 
         return new OrderDetailData(
-            $order->id, $order->status, $order->payment_status, $order->payment_method_id,
+            $order->id, $order->public_number, $order->status, $order->payment_status, $order->payment_method_id,
             $order->currency_code, $order->mode, $order->locale,
             $party->email, $party->buyer_type, $party->company_name,
             $party->billing_address, $party->shipping_address,

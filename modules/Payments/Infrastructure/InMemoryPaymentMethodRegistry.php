@@ -28,6 +28,11 @@ final class InMemoryPaymentMethodRegistry implements PaymentMethodRegistry
         return $this->methods[$methodId] ?? throw new InvalidArgumentException("Unknown payment method [{$methodId}].");
     }
 
+    public function nameOf(string $methodId): string
+    {
+        return isset($this->methods[$methodId]) ? $this->methods[$methodId]->descriptor()->name : $methodId;
+    }
+
     public function all(): array
     {
         return array_map(static fn (PaymentMethod $method): PaymentMethodDescriptor => $method->descriptor(), array_values($this->methods));

@@ -14,7 +14,7 @@ final class InMemoryScheduledTaskRegistry implements ScheduledTaskRegistry
     /** @var array<string, ScheduledTaskDefinition> */
     private array $tasks = [];
 
-    public function register(string $key, int $intervalSeconds, callable $handler): void
+    public function register(string $key, int $intervalSeconds, callable $handler, string $label = ''): void
     {
         if (preg_match('/^[a-z][a-z0-9-]*(?:\.[a-z0-9_-]+)+$/', $key) !== 1 || mb_strlen($key) > 191) {
             throw new InvalidArgumentException("Scheduled task key [{$key}] is invalid.");
@@ -30,6 +30,7 @@ final class InMemoryScheduledTaskRegistry implements ScheduledTaskRegistry
             $key,
             $intervalSeconds,
             $handler instanceof Closure ? $handler : Closure::fromCallable($handler),
+            $label,
         );
     }
 

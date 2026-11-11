@@ -60,13 +60,14 @@ final class PaymentsServiceProvider extends ServiceProvider
         $this->app->make(ScheduledTaskRegistry::class)->register(
             'core.payments.reconcile_expired',
             60,
-            fn () => $this->app->make(PaymentExpiryReconciler::class)->reconcileDue(
+            label: 'payments::tasks.reconcile_expired',
+            handler: fn () => $this->app->make(PaymentExpiryReconciler::class)->reconcileDue(
                 (int) config('orders.payment_reconcile_batch', 50),
             ),
         );
 
         $this->commands([ReplayDeferredPaymentWebhooksCommand::class]);
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.payments.replay_deferred_webhooks', 60, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.payments.replay_deferred_webhooks', 60, label: 'payments::tasks.replay_deferred_webhooks', handler: static function (): void {
             Artisan::call('payments:replay-deferred-webhooks');
         });
 

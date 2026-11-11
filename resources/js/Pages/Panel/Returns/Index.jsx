@@ -12,8 +12,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { RotateCcw } from 'lucide-react';
+import { formatDateTime } from '@/lib/format';
 
-function date(value) { return value ? new Date(value).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }) : '—'; }
 
 export default function Index({ returnRequests, reasons }) {
     const t = useTranslate();
@@ -34,11 +34,11 @@ export default function Index({ returnRequests, reasons }) {
                     ) : (
                         <>
                             <Table columns={[
-                                { header: t('returns.column_order', 'Order'), render: (row) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{row.order_id}</span> },
+                                { header: t('returns.column_order', 'Order'), render: (row) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{row.order_number}</span> },
                                 { header: t('returns.column_customer', 'Customer'), render: (row) => row.email },
                                 { header: t('returns.column_status', 'Status'), render: (row) => <Badge tone={row.status === 'open' ? 'warning' : 'neutral'}>{row.status === 'open' ? t('returns.status_open', 'Open') : t('returns.status_closed', 'Closed')}</Badge> },
                                 { header: t('returns.column_pending_count', 'Awaiting decision'), align: 'right', render: (row) => row.pending_count },
-                                { header: t('returns.column_created_at', 'Requested'), render: (row) => date(row.created_at) },
+                                { header: t('returns.column_created_at', 'Requested'), render: (row) => formatDateTime(row.created_at) },
                                 { header: '', align: 'right', render: (row) => <Button href={route('panel.returns.show', row.id)} variant="outline" size="sm">{t('returns.open_action', 'Open')}</Button> },
                             ]} rows={returnRequests.data} />
                             <div style={{ marginTop: 18, display: 'flex', justifyContent: 'flex-end' }}><Pagination paginator={returnRequests} /></div>

@@ -11,8 +11,8 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { CheckCircle2, Circle, Download, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { formatDateTime } from '@/lib/format';
 
-const formatDate = (value) => (value ? new Date(value).toLocaleString() : null);
 
 const stepIcon = {
     done: <CheckCircle2 size={16} style={{ color: 'var(--success-text)' }} />,
@@ -94,7 +94,7 @@ export default function Index({ current_version: currentVersion, automatic_check
                                 <Badge tone="success">{t('updates.up_to_date')}</Badge>
                             )}
                         </div>
-                        <div>{t('updates.checked_at')}: {formatDate(checkedAt) ?? t('updates.never')}</div>
+                        <div>{t('updates.checked_at')}: {formatDateTime(checkedAt, null) ?? t('updates.never')}</div>
                         <div>
                             <Button variant="outline" icon={<RefreshCw size={14} />} loading={checkForm.processing} onClick={check}>{t('updates.check_now')}</Button>
                         </div>

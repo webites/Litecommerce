@@ -14,5 +14,7 @@ final class StoreSettingKeys
 
     public const CatalogProductsPerPage = 'catalog.products_per_page';
 
+    public const Timezone = 'store.timezone';
+
     public const FilterHtml = 'content.filter_html';
 }

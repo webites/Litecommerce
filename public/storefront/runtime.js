@@ -28,6 +28,16 @@
  *       matching [data-storefront-error-for="field"] element if the theme
  *       provided one. Submit buttons stay disabled while the request runs
  *       and are enabled again after a failure, so the form can be retried.
+ *       With data-storefront-autosave on the form, a committed change to
+ *       a field submits it after a short pause while the form is valid
+ *       (silent: no success message, no 422 errors).
+ *       A failed request also broadcasts "storefront:error" on document
+ *       with detail { status, code, message, errors, method, url, source }
+ *       (code is the API's machine-readable reason, e.g. "pickup_point_required";
+ *       source is the form or button). A theme or plugin listens to it to
+ *       report, track or handle a failure without touching the runtime;
+ *       the same event is emitted by the react-storefront API helper
+ *       (source is null there).
  *
  *   <button data-storefront-action="post|put|delete"
  *           data-storefront-url="/cart/items/{variant_id}"
@@ -434,6 +444,21 @@
         document.dispatchEvent(new CustomEvent('storefront:refresh'));
     }
 
+    function broadcastError(source, method, url, result) {
+        const body = result.body || {};
+        document.dispatchEvent(new CustomEvent('storefront:error', {
+            detail: {
+                status: result.status,
+                code: typeof body.code === 'string' ? body.code : null,
+                message: typeof body.message === 'string' ? body.message : null,
+                errors: body.errors || null,
+                method: method,
+                url: url,
+                source: source,
+            },
+        }));
+    }
+
     /* ---------------------------------------------------------------
      * data-storefront="ajax" forms
      * --------------------------------------------------------------- */
@@ -455,6 +480,8 @@
             if (form.hasAttribute('aria-busy')) {
                 return;
             }
+            const silent = form.hasAttribute('data-storefront-autosaving');
+            form.removeAttribute('data-storefront-autosaving');
 
             // Read the raw attributes, not the .action/.method IDL
             // properties — those resolve to a normalized absolute URL
@@ -471,13 +498,16 @@
 
             if (result.ok) {
                 showFieldErrors(form, null);
-                showMessage(form, 'success', form.dataset.storefrontSuccessMessage || runtimeMessage('saved'));
+                if (!silent) {
+                    showMessage(form, 'success', form.dataset.storefrontSuccessMessage || runtimeMessage('saved'));
+                }
                 broadcastRefresh();
                 document.dispatchEvent(new CustomEvent('storefront:success', { detail: result.body }));
                 applyRedirect(form.dataset.storefrontRedirect, form, result.body);
-            } else {
+            } else if (!(silent && result.status === 422)) {
                 showFieldErrors(form, result.body && result.body.errors);
                 showMessage(form, 'error', failureMessage(result));
+                broadcastError(form, method, url, result);
                 if (form.dataset.storefrontRefreshOnError !== undefined) {
                     broadcastRefresh();
                 }
@@ -512,6 +542,7 @@
             applyRedirect(trigger.dataset.storefrontRedirect, trigger, result.body);
         } else {
             showMessage(trigger.closest('[data-storefront-message], body'), 'error', failureMessage(result));
+            broadcastError(trigger, action.toUpperCase(), url, result);
             if (trigger.dataset.storefrontRefreshOnError !== undefined) {
                 broadcastRefresh();
             }
@@ -952,6 +983,37 @@
     }
 
     /* ---------------------------------------------------------------
+     * data-storefront-autosave forms: a committed change to any visible
+     * field submits the form once the user pauses, but only while the
+     * browser considers the form valid. A rejected autosave (422) stays
+     * silent — the user is still typing; the explicit submit button
+     * reports the errors.
+     * --------------------------------------------------------------- */
+
+    function bindAutosave() {
+        const timers = new WeakMap();
+        document.addEventListener('change', function (event) {
+            const el = event.target;
+            const form = el.form;
+            if (!form || !form.hasAttribute('data-storefront-autosave') || el.type === 'hidden' || el.hasAttribute('data-storefront-auto-submit')) {
+                return;
+            }
+            clearTimeout(timers.get(form));
+            const attempt = function () {
+                if (form.hasAttribute('aria-busy')) {
+                    timers.set(form, setTimeout(attempt, 300));
+                    return;
+                }
+                if (form.checkValidity()) {
+                    form.setAttribute('data-storefront-autosaving', '');
+                    form.requestSubmit();
+                }
+            };
+            timers.set(form, setTimeout(attempt, 600));
+        });
+    }
+
+    /* ---------------------------------------------------------------
      * data-storefront-auto-submit inputs
      * --------------------------------------------------------------- */
 
@@ -1263,6 +1325,7 @@
     bindCountrySelect();
     bindDeliveryPickupPointSync(); // must run before bindAutoSubmit() below, so the hidden field it updates is already correct by the time an auto-submit reads the form
     bindAutoSubmit();
+    bindAutosave();
     document.addEventListener('storefront:refresh', function () {
         runLoadRegions();
         refreshCartCount();

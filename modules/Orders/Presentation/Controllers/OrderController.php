@@ -18,6 +18,7 @@ use Litecommerce\Modules\Digital\Contracts\DigitalGrantData;
 use Litecommerce\Modules\Email\Contracts\EmailMessageCatalog;
 use Litecommerce\Modules\Orders\Application\GrantDigitalAccessAfterLatePayment;
 use Litecommerce\Modules\Orders\Application\ManageOrder;
+use Litecommerce\Modules\Orders\Application\OrderReopenNotConfirmedException;
 use Litecommerce\Modules\Orders\Contracts\OrderPaymentManager;
 use Litecommerce\Modules\Orders\Contracts\OrderStatusRegistry;
 use Litecommerce\Modules\Orders\Infrastructure\Models\Order;
@@ -25,24 +26,34 @@ use Litecommerce\Modules\Orders\Presentation\PickupFulfillmentPresenter;
 use Litecommerce\Modules\Payments\Contracts\PaymentAttemptCatalog;
 use Litecommerce\Modules\Payments\Contracts\PaymentAttemptStarter;
 use Litecommerce\Modules\Payments\Contracts\PaymentConfirmation;
+use Litecommerce\Modules\Payments\Contracts\PaymentMethodRegistry;
 use Litecommerce\Modules\Payments\Contracts\PaymentReferenceAlreadyUsedException;
 use Litecommerce\Modules\Returns\Contracts\ReturnCatalog;
 use Litecommerce\Modules\Returns\Contracts\ReturnRequestData;
 use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
+use Litecommerce\Modules\Store\Contracts\PhoneFormatter;
 
 final class OrderController extends Controller
 {
+    public function __construct(private readonly PaymentMethodRegistry $paymentMethods) {}
+
     public function index(Request $request, CurrencyRepository $currencies): Response
     {
         $page = max(1, (int) $request->query('page', 1));
         $perPage = 25;
-        $query = Order::query()->orderByDesc('created_at');
+        $search = trim((string) $request->query('q', ''));
+        $query = Order::query()->orderByDesc('created_at')
+            ->when($search !== '', fn ($q) => $q->where(fn ($inner) => $inner
+                ->where('public_number', $search)
+                ->orWhere('number', ctype_digit($search) ? (int) $search : 0)
+                ->orWhere('email', 'like', addcslashes($search, '\\%_').'%')));
         $total = (clone $query)->count();
         $places = collect($currencies->all())->mapWithKeys(fn ($currency): array => [$currency->code => $currency->decimalPlaces]);
         $rows = $query->forPage($page, $perPage)->get()->map(fn (Order $order): array => $this->summary($order, (int) $places->get($order->currency_code, 2)))->all();
 
         return Inertia::render('Panel/Orders/Index', [
             'orders' => new LengthAwarePaginator($rows, $total, $perPage, $page, ['path' => $request->url(), 'query' => $request->query()]),
+            'filters' => ['q' => $search],
         ]);
     }
 
@@ -63,7 +74,10 @@ final class OrderController extends Controller
                 'locale' => $model->locale, 'source_type' => $model->source_type, 'source_id' => $model->source_id,
                 'total_net_amount' => (string) $model->total_net_amount,
                 'total_vat_amount' => (string) $model->total_vat_amount,
-                'party' => $model->party?->only(['buyer_type', 'email', 'company_name', 'tax_identifier', 'registration_number', 'phone', 'billing_address', 'shipping_address']),
+                'party' => $model->party === null ? null : [
+                    ...$model->party->only(['buyer_type', 'email', 'company_name', 'tax_identifier', 'registration_number', 'phone', 'billing_address', 'shipping_address']),
+                    'phone_formatted' => $this->formattedPhone($model->party->phone, $model->party->billing_address),
+                ],
                 'delivery' => $model->delivery?->only(['kind', 'name', 'net_amount', 'vat_amount', 'gross_amount', 'pickup_point_snapshot']),
                 'fulfillment' => $fulfillment->present($model),
                 'adjustments' => $this->adjustmentTotals($model),
@@ -83,7 +97,7 @@ final class OrderController extends Controller
                     'body' => $message->body,
                 ], $emailMessages->forSource('order', $model->id, 'core.manual_customer_message')),
                 'payment_attempts' => array_map(static fn ($attempt): array => [
-                    'id' => $attempt->id, 'provider_id' => $attempt->providerId, 'method_id' => $attempt->methodId,
+                    'id' => $attempt->id, 'provider_id' => $attempt->providerId, 'method_id' => $attempt->methodId, 'method_name' => $attempt->methodName,
                     'transaction_id' => $attempt->providerTransactionId, 'status' => $attempt->status->value,
                     'amount' => $attempt->amount, 'currency_code' => $attempt->currencyCode,
                 ], $payments->forOrder($model->id)),
@@ -185,8 +199,13 @@ final class OrderController extends Controller
 
     public function updateStatus(Request $request, string $order, ManageOrder $orders): RedirectResponse
     {
-        $data = $request->validate(['status' => ['required', 'string', 'max:32'], 'reason' => ['nullable', 'string', 'max:1000']]);
-        $orders->changeStatus($order, (string) $data['status'], (string) $request->user()->getAuthIdentifier(), $data['reason'] ?? null);
+        $data = $request->validate(['status' => ['required', 'string', 'max:32'], 'reason' => ['nullable', 'string', 'max:1000'], 'confirm_reopen' => ['nullable', 'boolean']]);
+
+        try {
+            $orders->changeStatus($order, (string) $data['status'], (string) $request->user()->getAuthIdentifier(), $data['reason'] ?? null, (bool) ($data['confirm_reopen'] ?? false));
+        } catch (OrderReopenNotConfirmedException) {
+            return back()->withErrors(['status' => trans('orders::flash.reopen_not_confirmed')]);
+        }
 
         return back()->with('status', trans('orders::flash.status_changed'));
     }
@@ -212,12 +231,24 @@ final class OrderController extends Controller
         return redirect()->route('panel.orders.index')->with('error', trans('orders::flash.not_found'));
     }
 
+    /** @param array<string, mixed>|null $billingAddress */
+    private function formattedPhone(?string $phone, ?array $billingAddress): ?string
+    {
+        if ($phone === null || trim($phone) === '') {
+            return null;
+        }
+
+        return app(PhoneFormatter::class)->format($phone, is_string($billingAddress['country_code'] ?? null) ? $billingAddress['country_code'] : null);
+    }
+
+    /** @return array<string, mixed> */
     private function summary(Order $order, int $decimalPlaces): array
     {
         return [
-            'id' => $order->id, 'email' => $order->email, 'mode' => $order->mode,
+            'id' => $order->id, 'number' => $order->public_number, 'email' => $order->email, 'mode' => $order->mode,
             'status' => $order->status, 'payment_status' => $order->payment_status,
             'payment_method_id' => $order->payment_method_id,
+            'payment_method_name' => $this->paymentMethods->nameOf((string) $order->payment_method_id),
             'total_gross_amount' => (string) $order->total_gross_amount,
             'currency_code' => $order->currency_code,
             'currency_decimal_places' => $decimalPlaces,

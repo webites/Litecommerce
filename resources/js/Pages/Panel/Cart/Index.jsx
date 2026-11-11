@@ -9,12 +9,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, usePage } from '@inertiajs/react';
 import { ShoppingCart } from 'lucide-react';
+import { formatDateTime } from '@/lib/format';
 
 const statusTone = { active: 'success', abandoned: 'warning', checked_out: 'neutral' };
-
-function formatDate(iso) {
-    return new Date(iso).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
-}
 
 export default function Index({ carts }) {
     const t = useTranslate();
@@ -39,7 +36,7 @@ export default function Index({ carts }) {
                                 { header: t('cart.index.columns.currency'), key: 'currency_code' },
                                 { header: t('cart.index.columns.items'), align: 'right', key: 'items_count' },
                                 { header: t('cart.index.columns.status'), render: (r) => <Badge tone={statusTone[r.status] ?? 'neutral'}>{statusLabel[r.status] ?? r.status}</Badge> },
-                                { header: t('cart.index.columns.last_activity'), render: (r) => formatDate(r.last_activity_at) },
+                                { header: t('cart.index.columns.last_activity'), render: (r) => formatDateTime(r.last_activity_at) },
                                 { header: '', align: 'right', render: (r) => <Button href={route('panel.cart.show', r.id)} variant="outline" size="sm">{t('cart.index.view')}</Button> },
                             ]}
                             rows={carts.data}

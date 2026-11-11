@@ -9,6 +9,7 @@ final readonly class OrderReturnableData
     /** @param  list<OrderLineDetailData>  $lines */
     public function __construct(
         public string $id,
+        public string $number,
         public string $currencyCode,
         public string $paymentStatus,
         public ?\DateTimeImmutable $paidAt,

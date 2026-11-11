@@ -38,6 +38,17 @@ export async function apiFetch(path, options = {}) {
     }
 
     if (!response.ok) {
+        document.dispatchEvent(new CustomEvent('storefront:error', {
+            detail: {
+                status: response.status,
+                code: (body && typeof body.code === 'string') ? body.code : null,
+                message: (body && typeof body.message === 'string') ? body.message : null,
+                errors: (body && body.errors) || null,
+                method: (options.method || 'GET').toUpperCase(),
+                url: path,
+                source: null,
+            },
+        }));
         const error = new Error((body && body.message) || 'Request failed');
         error.status = response.status;
         error.code = body && body.code;

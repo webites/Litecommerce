@@ -34,7 +34,7 @@ final class CartServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'cart');
         $this->commands([PruneInactiveCartsCommand::class]);
 
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.cart.prune_inactive', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.cart.prune_inactive', 86400, label: 'cart::tasks.prune_inactive', handler: static function (): void {
             Artisan::call('cart:prune-inactive');
         });
     }

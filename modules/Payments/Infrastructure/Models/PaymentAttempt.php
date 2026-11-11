@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $order_id
  * @property string $provider_id
  * @property string $method_id
+ * @property string|null $method_name
  * @property string|null $provider_transaction_id
  * @property string $status
  * @property string $amount

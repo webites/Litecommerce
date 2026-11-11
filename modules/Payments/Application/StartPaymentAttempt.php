@@ -40,7 +40,7 @@ final class StartPaymentAttempt implements PaymentAttemptStarter
     public function retry(string $orderId, string $customerEmail, ?string $returnUrl = null): PaymentAttemptData
     {
         $order = $this->orders->find($orderId) ?? throw new \InvalidArgumentException("Unknown order [{$orderId}].");
-        if ($order->paymentStatus !== 'unpaid' || bccomp($order->amount, '0', 6) === 0) {
+        if ($order->paymentStatus !== 'unpaid' || $order->status === 'cancelled' || bccomp($order->amount, '0', 6) === 0) {
             throw new \DomainException('Nie można ponowić płatności dla tego zamówienia.');
         }
 
@@ -59,7 +59,7 @@ final class StartPaymentAttempt implements PaymentAttemptStarter
 
         $attempt = PaymentAttempt::query()->create([
             'id' => $attemptId, 'order_id' => $orderId, 'provider_id' => $descriptor->providerId,
-            'method_id' => $descriptor->id, 'status' => PaymentAttemptStatus::Created->value,
+            'method_id' => $descriptor->id, 'method_name' => $descriptor->name, 'status' => PaymentAttemptStatus::Created->value,
             'amount' => $order->amount, 'currency_code' => $order->currencyCode, 'mode' => $order->mode,
         ]);
 
@@ -69,7 +69,7 @@ final class StartPaymentAttempt implements PaymentAttemptStarter
 
         try {
             $result = $method->start(new PaymentContext(
-                $orderId, $attemptId, $order->amount, $order->currencyCode, $order->mode, $customerEmail, $order->locale, $returnUrl,
+                $orderId, $order->number, $attemptId, $order->amount, $order->currencyCode, $order->mode, $customerEmail, $order->locale, $returnUrl,
             ));
             $attempt->update([
                 'provider_transaction_id' => $result->providerTransactionId,

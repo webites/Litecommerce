@@ -12,13 +12,25 @@ use Litecommerce\Modules\Cms\Contracts\GlobalTagRegistry;
 use Litecommerce\Modules\Identity\Contracts\CorePermission;
 use Litecommerce\Modules\Identity\Contracts\StaffPermissionChecker;
 use Litecommerce\Modules\Store\Application\ConfigureStoreBootstrap;
+use Litecommerce\Modules\Store\Application\LocalizedAddressFormatter;
+use Litecommerce\Modules\Store\Application\LocalizedDateTimeFormatter;
+use Litecommerce\Modules\Store\Application\LocalizedMoneyFormatter;
+use Litecommerce\Modules\Store\Application\LocalizedPercentageFormatter;
+use Litecommerce\Modules\Store\Application\LocalizedPhoneFormatter;
+use Litecommerce\Modules\Store\Application\LocalizedQuantityFormatter;
 use Litecommerce\Modules\Store\Application\SanitizeStoredHtml;
 use Litecommerce\Modules\Store\Console\SanitizeStoredHtmlCommand;
+use Litecommerce\Modules\Store\Contracts\AddressFormatter;
 use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
+use Litecommerce\Modules\Store\Contracts\DateTimeFormatter;
 use Litecommerce\Modules\Store\Contracts\Events\LanguagesChanged;
 use Litecommerce\Modules\Store\Contracts\Events\StoreSettingsChanged;
 use Litecommerce\Modules\Store\Contracts\HtmlContentFilter;
 use Litecommerce\Modules\Store\Contracts\LanguageRepository;
+use Litecommerce\Modules\Store\Contracts\MoneyFormatter;
+use Litecommerce\Modules\Store\Contracts\PercentageFormatter;
+use Litecommerce\Modules\Store\Contracts\PhoneFormatter;
+use Litecommerce\Modules\Store\Contracts\QuantityFormatter;
 use Litecommerce\Modules\Store\Contracts\SettingsTabRegistry;
 use Litecommerce\Modules\Store\Contracts\SetupChecklist;
 use Litecommerce\Modules\Store\Contracts\StoreBootstrap;
@@ -41,6 +53,12 @@ final class StoreServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(CurrencyRepository::class, EloquentCurrencyRepository::class);
+        $this->app->scoped(MoneyFormatter::class, LocalizedMoneyFormatter::class);
+        $this->app->scoped(DateTimeFormatter::class, LocalizedDateTimeFormatter::class);
+        $this->app->scoped(QuantityFormatter::class, LocalizedQuantityFormatter::class);
+        $this->app->scoped(AddressFormatter::class, LocalizedAddressFormatter::class);
+        $this->app->scoped(PhoneFormatter::class, LocalizedPhoneFormatter::class);
+        $this->app->scoped(PercentageFormatter::class, LocalizedPercentageFormatter::class);
         $this->app->bind(LanguageRepository::class, EloquentLanguageRepository::class);
         $this->app->bind(StoreBootstrap::class, ConfigureStoreBootstrap::class);
         $this->app->bind(StoreSettingsReader::class, EloquentStoreSettingsReader::class);

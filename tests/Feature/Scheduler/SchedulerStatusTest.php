@@ -43,6 +43,23 @@ final class SchedulerStatusTest extends TestCase
         $this->assertContains('core.email.process', $keys);
     }
 
+    public function test_tasks_expose_a_readable_name_with_the_key_as_fallback(): void
+    {
+        app(RunDueScheduledTasks::class)->run(20, 10);
+
+        $names = [];
+        foreach (app(SchedulerStatus::class)->current()->tasks as $task) {
+            $names[$task->key] = $task->name;
+        }
+
+        $this->assertSame(trans('payments::tasks.reconcile_expired'), $names['core.payments.reconcile_expired']);
+        foreach ($names as $key => $name) {
+            $this->assertNotSame('', $name);
+            $this->assertStringNotContainsString('::tasks.', $name, "Task [{$key}] shows an untranslated label.");
+            $this->assertNotSame($key, $name, "Core task [{$key}] has no readable name.");
+        }
+    }
+
     public function test_status_reports_delay_thresholds_per_mode(): void
     {
         app(RunDueScheduledTasks::class)->run(20, 10);

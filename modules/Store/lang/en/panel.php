@@ -13,6 +13,8 @@ return [
         'remove_logo' => 'Remove logo',
         'blog_enabled' => 'Make the blog publicly available',
         'products_per_page' => 'Products per page',
+        'timezone' => 'Store time zone',
+        'timezone_help' => 'Storefront, e-mails and the panel show dates and times in this zone. Stored data stays in UTC.',
         'products_per_page_help' => 'Used by the product listing and filtered results. Allowed range: 1–100.',
         'save' => 'Save settings',
         'loading' => 'Loading settings…',

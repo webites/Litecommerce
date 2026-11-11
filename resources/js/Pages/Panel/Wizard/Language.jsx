@@ -14,7 +14,7 @@ export default function Language({ steps, languages }) {
             activeKey="language"
             title={t('setup.language.title', 'Store language')}
             description={t('setup.language.description', 'The default language of your storefront. You can add more languages later in Settings.')}
-            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store')); }}
+            onSubmit={(e) => { e.preventDefault(); post(route('panel.wizard.store', { step: 'language' })); }}
             processing={processing}
         >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

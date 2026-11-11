@@ -7,6 +7,7 @@ import Radio from '@/Components/ui/Radio';
 import Select from '@/Components/ui/Select';
 import Table from '@/Components/ui/Table';
 import SettingsPageFrame from '@/Components/panel/SettingsPageFrame';
+import { formatPercent } from '@/lib/format';
 import { useTranslate } from '@/lib/i18n';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
@@ -158,7 +159,7 @@ export default function Index({ settings, baseCurrency, currencies, taxRates, ta
                             columns={[
                                 { header: t('pricing.fields.name', 'Name'), key: 'name' },
                                 { header: t('pricing.column_qualification', 'Qualification'), render: (r) => kindLabel(r.kind) },
-                                { header: t('pricing.column_tax_rate', 'Rate'), render: (r) => (r.kind === 'percentage' ? `${r.percentage}%` : '—') },
+                                { header: t('pricing.column_tax_rate', 'Rate'), render: (r) => (r.kind === 'percentage' ? formatPercent(r.percentage) : '—') },
                                 { header: '', align: 'right', render: (r) => <Button variant="outline" size="sm" onClick={() => startEditTaxRate(r)}>{t('pricing.edit', 'Edit')}</Button> },
                             ]}
                             rows={taxRates}

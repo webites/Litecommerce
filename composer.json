@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.3",
         "dompdf/dompdf": "^3.1",
+        "giggsey/libphonenumber-for-php-lite": "^9.0",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.0",

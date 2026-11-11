@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Litecommerce\Modules\Setup\Application;
 
+use Litecommerce\Modules\Delivery\Contracts\DeliverySetup;
 use Litecommerce\Modules\DemoData\Contracts\DemoDataManager;
 use Litecommerce\Modules\Email\Contracts\EmailSettings;
 use Litecommerce\Modules\Pricing\Contracts\PriceMode;
@@ -19,6 +20,7 @@ final readonly class ConfigureStore
         private StoreBootstrap $store,
         private StoreSettingsStore $settings,
         private PricingSetup $pricing,
+        private DeliverySetup $delivery,
         private EmailSettings $email,
         private DemoDataManager $demoData,
     ) {}
@@ -41,6 +43,16 @@ final readonly class ConfigureStore
     public function pricing(PriceMode $mode, ?string $taxRateName, ?string $taxPercentage): void
     {
         $this->pricing->configure($mode, $taxRateName, $taxPercentage);
+    }
+
+    public function localPickup(string $methodName, string $pointName, string $countryCode, string $postalCode, string $city, string $addressLine): void
+    {
+        $this->delivery->addLocalPickup($methodName, $pointName, $countryCode, $postalCode, $city, $addressLine);
+    }
+
+    public function courier(string $methodName, string $countryCode, string $price): void
+    {
+        $this->delivery->addCourier($methodName, $countryCode, $price);
     }
 
     /** @param array<string, mixed> $values */

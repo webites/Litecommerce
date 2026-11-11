@@ -29,7 +29,8 @@ final class CouponsServiceProvider extends ServiceProvider
         $this->app->make(ScheduledTaskRegistry::class)->register(
             'core.coupons.reconcile_expired_reservations',
             60,
-            fn () => $this->app->make(CouponReservationManager::class)->reconcileExpiredReservations(
+            label: 'coupons::tasks.reconcile_expired_reservations',
+            handler: fn () => $this->app->make(CouponReservationManager::class)->reconcileExpiredReservations(
                 null,
                 (int) config('coupons.reconcile_batch', 200),
             ),

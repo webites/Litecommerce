@@ -9,6 +9,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { BookOpen, FolderTree, Plus } from 'lucide-react';
+import { formatDateTime } from '@/lib/format';
 
 const tones = { draft: 'neutral', published: 'success', scheduled: 'info', archived: 'warning' };
 
@@ -34,7 +35,7 @@ export default function Index({ posts }) {
                         <Table
                             columns={[
                                 { header: t('blog.posts.column_post', 'Post'), render: (post) => <Link href={route('panel.blog.posts.edit', post.id)} style={{ color: 'var(--text-link)', fontWeight: 600 }}>{post.title}</Link> },
-                                { header: t('blog.posts.column_date', 'Date'), render: (post) => post.date ? new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.date)) : '—' },
+                                { header: t('blog.posts.column_date', 'Date'), render: (post) => formatDateTime(post.date) },
                                 { header: t('blog.posts.column_status', 'Status'), render: (post) => <Badge tone={tones[post.status]}>{labels[post.status]}</Badge> },
                             ]}
                             rows={posts.data}

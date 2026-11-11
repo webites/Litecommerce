@@ -2,9 +2,11 @@ import { Fragment } from 'react';
 
 /**
  * Table primitive from the Litecommerce panel design system.
+ * With `cards`, a narrow screen shows each row as a card (first column as the title,
+ * a column with an empty header as the action row) instead of a horizontally scrolling table.
  */
-export default function Table({ columns = [], rows = [], onRowClick }) {
-    return (
+export default function Table({ columns = [], rows = [], onRowClick, cards = false }) {
+    const table = (
         <div
             style={{
                 border: '1px solid var(--border-subtle)',
@@ -66,5 +68,42 @@ export default function Table({ columns = [], rows = [], onRowClick }) {
                 </tbody>
             </table>
         </div>
+    );
+
+    if (!cards) return table;
+
+    const titleColumn = columns.find((c) => c.header) ?? columns[0];
+    const detailColumns = columns.filter((c) => c !== titleColumn && c.header);
+    const actionColumns = columns.filter((c) => !c.header && c !== titleColumn);
+    const cell = (c, r) => (c.render ? c.render(r) : r[c.key]);
+
+    return (
+        <>
+            <div className="hidden sm:block">{table}</div>
+            <div className="flex flex-col sm:hidden" style={{ gap: 10, fontFamily: 'var(--font-body)' }}>
+                {rows.map((r, ri) => (
+                    <div
+                        key={ri}
+                        onClick={() => onRowClick?.(r)}
+                        style={{
+                            border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-card)', background: 'var(--bg-surface)',
+                            padding: 14, display: 'flex', flexDirection: 'column', gap: 10, cursor: onRowClick ? 'pointer' : 'default',
+                        }}
+                    >
+                        <div style={{ fontSize: 15, color: 'var(--text-primary)' }}>{cell(titleColumn, r)}</div>
+                        {detailColumns.map((c, ci) => (
+                            <div key={ci} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 13 }}>
+                                <span style={{ color: 'var(--text-tertiary)' }}>{c.header}</span>
+                                <span style={{ color: 'var(--text-primary)', textAlign: 'right' }}>{cell(c, r)}</span>
+                            </div>
+                        ))}
+                        {actionColumns.map((c, ci) => (
+                            <div key={ci} style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: 10 }}>{cell(c, r)}</div>
+                        ))}
+                    </div>
+                ))}
+                {rows.length === 0 && <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Brak danych.</div>}
+            </div>
+        </>
     );
 }

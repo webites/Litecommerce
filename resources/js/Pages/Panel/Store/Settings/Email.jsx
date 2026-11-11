@@ -13,6 +13,7 @@ import { useTranslate } from '@/lib/i18n';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { formatDateTime } from '@/lib/format';
 
 const sections = ['connection', 'templates', 'layouts', 'queue'];
 
@@ -155,6 +156,6 @@ function Queue({ definitions, languages, messages, queueHealth, t }) {
     return <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {delayed && <Alert tone="warning">{t('email.ui.queue_delayed', undefined, { count: queueHealth.queued_count })}</Alert>}
         <Card title={t('email.ui.test_title')}><form onSubmit={(event) => { event.preventDefault(); test.post(route('panel.email.test'), { preserveScroll: true }); }} className="grid grid-cols-1 sm:grid-cols-4" style={{ gap: 12, alignItems: 'end' }}><Select label={t('email.ui.message_type')} value={test.data.definition_key} options={definitions.map((item) => ({ value: item.key, label: item.label }))} onChange={(event) => test.setData('definition_key', event.target.value)} /><Select label={t('email.ui.language')} value={test.data.locale} options={languages.map((value) => ({ value, label: value.toUpperCase() }))} onChange={(event) => test.setData('locale', event.target.value)} /><Input type="email" label={t('email.ui.recipient')} value={test.data.recipient} error={test.errors.recipient} onChange={(event) => test.setData('recipient', event.target.value)} /><Button type="submit" loading={test.processing}>{t('email.ui.send_test')}</Button></form></Card>
-        <Card title={t('email.ui.queue_title')} description={t('email.ui.queue_description')}><Table columns={[{ header: t('email.ui.created'), render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : '—' }, { header: t('email.ui.message_type'), render: (row) => definitionLabels[row.definition_key] ?? row.definition_key }, { header: t('email.ui.recipient'), render: (row) => row.recipient }, { header: t('email.ui.status'), render: (row) => <Badge>{t(`email.ui.statuses.${row.status}`)}</Badge> }, { header: t('email.ui.attempts'), align: 'right', render: (row) => row.attempts }, { header: t('email.ui.actions'), render: actions }]} rows={messages} /></Card>
+        <Card title={t('email.ui.queue_title')} description={t('email.ui.queue_description')}><Table columns={[{ header: t('email.ui.created'), render: (row) => formatDateTime(row.created_at) }, { header: t('email.ui.message_type'), render: (row) => definitionLabels[row.definition_key] ?? row.definition_key }, { header: t('email.ui.recipient'), render: (row) => row.recipient }, { header: t('email.ui.status'), render: (row) => <Badge>{t(`email.ui.statuses.${row.status}`)}</Badge> }, { header: t('email.ui.attempts'), align: 'right', render: (row) => row.attempts }, { header: t('email.ui.actions'), render: actions }]} rows={messages} /></Card>
     </div>;
 }

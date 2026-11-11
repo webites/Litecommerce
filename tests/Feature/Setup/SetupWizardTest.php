@@ -155,11 +155,72 @@ final class SetupWizardTest extends TestCase
         $this->assertSame(0, DB::table('tax_rates')->count());
     }
 
-    public function test_email_settings_are_saved_through_the_email_module(): void
+    public function test_the_delivery_step_adds_a_local_pickup_method_with_its_point_and_the_only_tax_rate(): void
+    {
+        $this->completeRequiredSteps();
+        $this->actingAs($this->admin)->post('/panel/wizard/skip');
+        $this->actingAs($this->admin)->post('/panel/wizard', ['price_entry_mode' => 'gross', 'tax_rate_name' => 'VAT 23%', 'tax_rate_percentage' => '23']);
+
+        $this->actingAs($this->admin)->get('/panel/wizard')->assertInertia(fn (AssertableInertia $page) => $page->component('Panel/Wizard/Delivery')->where('baseCurrency', 'USD')->has('countries'));
+        $this->actingAs($this->admin)->post('/panel/wizard', ['kind' => 'pickup', 'method_name' => 'Odbiór osobisty', 'country_code' => 'pl'])
+            ->assertSessionHasErrors(['point_name', 'postal_code', 'city', 'address_line_1']);
+        $this->actingAs($this->admin)->post('/panel/wizard', [
+            'kind' => 'pickup', 'method_name' => 'Odbiór osobisty', 'country_code' => 'pl', 'point_name' => 'Sklep główny',
+            'postal_code' => '50-001', 'city' => 'Wrocław', 'address_line_1' => 'Rynek 1',
+        ])->assertRedirect(route('panel.wizard.show'));
+
+        $method = DB::table('delivery_methods')->first();
+        $this->assertSame('pickup', $method->kind);
+        $this->assertSame(1, (int) $method->active);
+        $this->assertSame((int) DB::table('tax_rates')->value('id'), (int) $method->tax_rate_id);
+        $this->assertDatabaseHas('delivery_pickup_points', ['delivery_method_id' => $method->id, 'name' => 'Sklep główny', 'country_code' => 'PL', 'city' => 'Wrocław', 'active' => 1]);
+        $this->assertDatabaseHas('audit_entries', ['action' => 'setup.step_saved', 'subject_id' => 'delivery']);
+    }
+
+    public function test_the_delivery_step_adds_a_courier_with_one_country_rate(): void
     {
         $this->completeRequiredSteps();
         $this->actingAs($this->admin)->post('/panel/wizard/skip');
         $this->actingAs($this->admin)->post('/panel/wizard/skip');
+
+        $this->actingAs($this->admin)->post('/panel/wizard', ['kind' => 'courier', 'method_name' => 'Kurier', 'country_code' => 'PL'])->assertSessionHasErrors('price_amount');
+        $this->actingAs($this->admin)->post('/panel/wizard', ['kind' => 'courier', 'method_name' => 'Kurier', 'country_code' => 'PL', 'price_amount' => '15'])
+            ->assertRedirect(route('panel.wizard.show'));
+
+        $method = DB::table('delivery_methods')->first();
+        $this->assertSame('flat_rate', $method->kind);
+        $this->assertNull($method->tax_rate_id);
+        $this->assertDatabaseHas('delivery_region_rules', ['delivery_method_id' => $method->id, 'rule_type' => 'country_rate', 'country_code' => 'PL']);
+        $this->assertEquals(15, DB::table('delivery_region_rules')->value('price_amount'));
+    }
+
+    public function test_a_form_for_an_earlier_step_does_not_act_on_the_current_one(): void
+    {
+        app(WarehouseProvisioner::class)->ensureDefaultWarehouseExists();
+        $this->advanceToEmailStep();
+
+        $this->actingAs($this->admin)->post('/panel/wizard?step=delivery')->assertRedirect(route('panel.wizard.show'));
+        $this->actingAs($this->admin)->post('/panel/wizard/skip?step=delivery')->assertRedirect(route('panel.wizard.show'));
+
+        $this->assertSame(0, DB::table('demo_data_batches')->count());
+        $this->actingAs($this->admin)->get('/panel/wizard')->assertInertia($this->page('Panel/Wizard/Email'));
+    }
+
+    public function test_the_delivery_step_can_be_skipped_without_creating_a_method(): void
+    {
+        $this->completeRequiredSteps();
+        $this->actingAs($this->admin)->post('/panel/wizard/skip');
+        $this->actingAs($this->admin)->post('/panel/wizard/skip');
+
+        $this->actingAs($this->admin)->post('/panel/wizard/skip')->assertRedirect(route('panel.wizard.show'));
+
+        $this->assertSame(0, DB::table('delivery_methods')->count());
+        $this->assertDatabaseHas('audit_entries', ['action' => 'setup.step_skipped', 'subject_id' => 'delivery']);
+    }
+
+    public function test_email_settings_are_saved_through_the_email_module(): void
+    {
+        $this->advanceToEmailStep();
 
         $this->actingAs($this->admin)->get('/panel/wizard')->assertInertia(fn (AssertableInertia $page) => $page->component('Panel/Wizard/Email')->where('adminEmail', 'admin@example.com'));
         $this->actingAs($this->admin)->post('/panel/wizard', ['from_name' => 'Shop', 'from_email' => 'nope'])->assertSessionHasErrors(['from_email', 'smtp_host', 'smtp_port']);
@@ -184,8 +245,9 @@ final class SetupWizardTest extends TestCase
     private function advanceToEmailStep(): void
     {
         $this->completeRequiredSteps();
-        $this->actingAs($this->admin)->post('/panel/wizard/skip');
-        $this->actingAs($this->admin)->post('/panel/wizard/skip');
+        foreach (['profile', 'pricing', 'delivery'] as $step) {
+            $this->actingAs($this->admin)->post('/panel/wizard/skip');
+        }
     }
 
     public function test_a_test_message_goes_to_the_administrator_and_the_step_stays_open(): void
@@ -221,7 +283,7 @@ final class SetupWizardTest extends TestCase
     public function test_skipping_everything_optional_finishes_the_wizard(): void
     {
         $this->completeRequiredSteps();
-        foreach (['profile', 'pricing', 'email', 'demo'] as $step) {
+        foreach (['profile', 'pricing', 'delivery', 'email', 'demo'] as $step) {
             $this->actingAs($this->admin)->post('/panel/wizard/skip')->assertRedirect(route('panel.wizard.show'));
         }
 
@@ -234,7 +296,7 @@ final class SetupWizardTest extends TestCase
     {
         app(WarehouseProvisioner::class)->ensureDefaultWarehouseExists();
         $this->completeRequiredSteps();
-        foreach (['profile', 'pricing', 'email'] as $step) {
+        foreach (['profile', 'pricing', 'delivery', 'email'] as $step) {
             $this->actingAs($this->admin)->post('/panel/wizard/skip');
         }
 

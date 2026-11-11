@@ -26,5 +26,6 @@ final readonly class PaymentAttemptData
         public string $currencyCode,
         public ?string $redirectUrl = null,
         public array $metadata = [],
+        public string $methodName = '',
     ) {}
 }

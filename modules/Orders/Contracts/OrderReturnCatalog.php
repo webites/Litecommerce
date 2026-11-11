@@ -14,4 +14,10 @@ namespace Litecommerce\Modules\Orders\Contracts;
 interface OrderReturnCatalog
 {
     public function find(string $orderId): ?OrderReturnableData;
+
+    /**
+     * @param  list<string>  $orderIds
+     * @return array<string, string> public order number keyed by order id
+     */
+    public function numbersFor(array $orderIds): array;
 }

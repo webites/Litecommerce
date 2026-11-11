@@ -15,5 +15,6 @@ final readonly class StoreSettingsData
         public ?int $logoHeight,
         public bool $blogEnabled,
         public int $catalogProductsPerPage,
+        public string $timezone = 'UTC',
     ) {}
 }

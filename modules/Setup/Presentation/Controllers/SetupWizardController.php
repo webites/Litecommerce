@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Setup\Presentation\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\I18n\CountryDirectory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,13 +20,14 @@ use Litecommerce\Modules\Pricing\Contracts\PricingSettingsCatalog;
 use Litecommerce\Modules\Setup\Application\ConfigureStore;
 use Litecommerce\Modules\Setup\Application\SetupProgress;
 use Litecommerce\Modules\Setup\Application\WizardStep;
+use Litecommerce\Modules\Store\Contracts\CurrencyRepository;
 use Litecommerce\Modules\Store\Contracts\StoreSettingsReader;
 
 final class SetupWizardController extends Controller
 {
     public function __construct(private readonly SetupProgress $progress, private readonly ConfigureStore $configure) {}
 
-    public function show(Request $request, StoreSettingsReader $store, PricingSettingsCatalog $pricing): Response
+    public function show(Request $request, StoreSettingsReader $store, PricingSettingsCatalog $pricing, CurrencyRepository $currencies): Response
     {
         $step = $this->progress->current();
         $steps = array_map(static fn (WizardStep $candidate): string => $candidate->value, WizardStep::cases());
@@ -42,13 +44,14 @@ final class SetupWizardController extends Controller
             'storeName' => $store->current()->storeName,
             'priceEntryMode' => $pricing->entryMode()->value,
             'adminEmail' => (string) $request->user()?->email,
+            ...($step === WizardStep::Delivery ? $this->deliveryProps($currencies) : []),
         ]);
     }
 
     public function store(Request $request, AuditLogger $audit): RedirectResponse
     {
         $step = $this->progress->current();
-        if ($step === null) {
+        if ($step === null || $this->isStale($request, $step)) {
             return redirect()->route('panel.wizard.show');
         }
 
@@ -65,6 +68,10 @@ final class SetupWizardController extends Controller
     {
         $step = $this->progress->current();
         abort_if($step === null || $step->isRequired(), 422);
+
+        if ($this->isStale($request, $step)) {
+            return redirect()->route('panel.wizard.show');
+        }
 
         return $this->completed($step, $request, $audit, 'skipped');
     }
@@ -87,6 +94,14 @@ final class SetupWizardController extends Controller
         return back()->with('status', trans('setup::panel.email.test_sent', ['email' => $recipient]));
     }
 
+    /** A form from an earlier page (double submit, second tab) names its own step and must not act on the current one. */
+    private function isStale(Request $request, WizardStep $current): bool
+    {
+        $submitted = $request->query('step');
+
+        return is_string($submitted) && $submitted !== $current->value;
+    }
+
     private function apply(WizardStep $step, Request $request): void
     {
         match ($step) {
@@ -94,6 +109,7 @@ final class SetupWizardController extends Controller
             WizardStep::Currency => $this->saveCurrency($request),
             WizardStep::Profile => $this->configure->profile($request->validate(['store_name' => ['required', 'string', 'max:255']])['store_name']),
             WizardStep::Pricing => $this->savePricing($request),
+            WizardStep::Delivery => $this->saveDelivery($request),
             WizardStep::Email => $this->saveEmail($request),
             WizardStep::Demo => $this->configure->demoData(),
         };
@@ -134,6 +150,28 @@ final class SetupWizardController extends Controller
         );
     }
 
+    private function saveDelivery(Request $request): void
+    {
+        $data = $request->validate([
+            'kind' => ['required', Rule::in(['pickup', 'courier'])],
+            'method_name' => ['required', 'string', 'max:255'],
+            'country_code' => ['required', 'string', 'size:2', 'alpha'],
+            'point_name' => ['required_if:kind,pickup', 'nullable', 'string', 'max:255'],
+            'postal_code' => ['required_if:kind,pickup', 'nullable', 'string', 'max:20'],
+            'city' => ['required_if:kind,pickup', 'nullable', 'string', 'max:255'],
+            'address_line_1' => ['required_if:kind,pickup', 'nullable', 'string', 'max:255'],
+            'price_amount' => ['required_if:kind,courier', 'nullable', 'numeric', 'min:0', 'max:1000000'],
+        ]);
+
+        if ($data['kind'] === 'pickup') {
+            $this->configure->localPickup(trim($data['method_name']), trim($data['point_name']), $data['country_code'], trim($data['postal_code']), trim($data['city']), trim($data['address_line_1']));
+
+            return;
+        }
+
+        $this->configure->courier(trim($data['method_name']), $data['country_code'], (string) $data['price_amount']);
+    }
+
     private function saveEmail(Request $request): void
     {
         $this->configure->email($request->validate([
@@ -159,6 +197,16 @@ final class SetupWizardController extends Controller
         ));
 
         return redirect()->route('panel.wizard.show');
+    }
+
+    /** @return array<string, mixed> */
+    private function deliveryProps(CurrencyRepository $currencies): array
+    {
+        return [
+            'countries' => (new CountryDirectory)->all(app()->getLocale()),
+            'baseCurrency' => $currencies->base()?->code,
+            'defaultCountry' => app()->getLocale() === 'pl' ? 'PL' : '',
+        ];
     }
 
     /** @return list<array{code: string, name: string}> */

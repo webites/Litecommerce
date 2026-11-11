@@ -7,6 +7,8 @@ namespace Litecommerce\Modules\Orders\Providers;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 use Litecommerce\Modules\Audit\Contracts\AuditRetentionRegistry;
+use Litecommerce\Modules\Identity\Contracts\CorePermission;
+use Litecommerce\Modules\Identity\Contracts\StaffPermissionChecker;
 use Litecommerce\Modules\Orders\Application\EloquentCustomerOrderCatalog;
 use Litecommerce\Modules\Orders\Application\EloquentGuestOrderAccess;
 use Litecommerce\Modules\Orders\Application\EloquentOrderConfirmationCatalog;
@@ -30,7 +32,9 @@ use Litecommerce\Modules\Orders\Contracts\OrderReturnCatalog;
 use Litecommerce\Modules\Orders\Contracts\OrderStatusDefinition;
 use Litecommerce\Modules\Orders\Contracts\OrderStatusRegistry;
 use Litecommerce\Modules\Orders\Infrastructure\InMemoryOrderStatusRegistry;
+use Litecommerce\Modules\Orders\Presentation\Controllers\OrderSettingsController;
 use Litecommerce\Modules\Scheduler\Contracts\ScheduledTaskRegistry;
+use Litecommerce\Modules\Store\Contracts\SettingsTabRegistry;
 
 final class OrdersServiceProvider extends ServiceProvider
 {
@@ -57,7 +61,8 @@ final class OrdersServiceProvider extends ServiceProvider
         $this->app->make(ScheduledTaskRegistry::class)->register(
             'core.orders.expire_uncollected',
             300,
-            fn () => $this->app->make(OrderFulfillmentManager::class)->expireDue(
+            label: 'orders::tasks.expire_uncollected',
+            handler: fn () => $this->app->make(OrderFulfillmentManager::class)->expireDue(
                 new \DateTimeImmutable,
                 (int) config('orders.pickup_expiry_batch', 50),
             ),
@@ -66,19 +71,28 @@ final class OrdersServiceProvider extends ServiceProvider
         $this->app->make(ScheduledTaskRegistry::class)->register(
             'core.orders.remind_pickup',
             300,
-            fn () => $this->app->make(OrderFulfillmentManager::class)->remindDue(
+            label: 'orders::tasks.remind_pickup',
+            handler: fn () => $this->app->make(OrderFulfillmentManager::class)->remindDue(
                 new \DateTimeImmutable,
                 (int) config('orders.pickup_expiry_batch', 50),
             ),
         );
 
         $this->commands([PruneGuestOrderTokensCommand::class, AnonymizeExpiredOrdersCommand::class]);
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.orders.anonymize_expired', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.orders.anonymize_expired', 86400, label: 'orders::tasks.anonymize_expired', handler: static function (): void {
             Artisan::call('orders:anonymize-expired');
         });
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.orders.prune_guest_tokens', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.orders.prune_guest_tokens', 86400, label: 'orders::tasks.prune_guest_tokens', handler: static function (): void {
             Artisan::call('orders:prune-guest-tokens');
         });
+
+        $this->app->make(SettingsTabRegistry::class)->register(
+            'orders',
+            'orders::panel.settings.tab',
+            250,
+            [$this->app->make(OrderSettingsController::class), 'settingsTab'],
+            fn (): bool => auth()->id() !== null && $this->app->make(StaffPermissionChecker::class)->allows((int) auth()->id(), CorePermission::ManageStoreSettings->value),
+        );
 
         $statuses->register(new OrderStatusDefinition('pending_payment', 'orders::statuses.pending_payment', true));
         $statuses->register(new OrderStatusDefinition('processing', 'orders::statuses.processing', true));

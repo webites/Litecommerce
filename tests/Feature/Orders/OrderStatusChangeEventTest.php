@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Event;
 use Litecommerce\Modules\Identity\Infrastructure\Models\StaffAccount;
 use Litecommerce\Modules\Installer\Infrastructure\InstallationLock;
 use Litecommerce\Modules\Orders\Contracts\Events\OrderStatusChanged;
+use Litecommerce\Modules\Orders\Contracts\OrderPaymentManager;
 use Tests\Concerns\CarriesTestCookies;
 use Tests\Concerns\UsesIsolatedStorage;
 use Tests\TestCase;
@@ -65,6 +66,22 @@ final class OrderStatusChangeEventTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         Event::assertNotDispatched(OrderStatusChanged::class);
+    }
+
+    public function test_reopening_a_cancelled_order_requires_explicit_confirmation(): void
+    {
+        $orderId = $this->placeDigitalOrder();
+        $staff = StaffAccount::factory()->create();
+        app(OrderPaymentManager::class)->cancelUnpaid($orderId, 'Rezygnacja klienta');
+
+        $this->actingAs($staff)->put(route('panel.orders.status.update', $orderId), ['status' => 'processing'])
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'cancelled']);
+
+        $this->actingAs($staff)->put(route('panel.orders.status.update', $orderId), ['status' => 'processing', 'confirm_reopen' => true])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'processing']);
+        $this->assertDatabaseHas('order_status_history', ['order_id' => $orderId, 'old_status' => 'cancelled', 'new_status' => 'processing']);
     }
 
     private function placeDigitalOrder(): string

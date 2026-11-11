@@ -32,7 +32,7 @@ export default function SetupWizardShell({ steps, activeKey, title, description,
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                         {skippable ? (
-                            <Button type="button" variant="outline" disabled={processing} onClick={() => router.post(route('panel.wizard.skip'))}>
+                            <Button type="button" variant="outline" disabled={processing} onClick={() => router.post(route('panel.wizard.skip', { step: activeKey }))}>
                                 {t('setup.skip', 'Skip for now')}
                             </Button>
                         ) : <span />}

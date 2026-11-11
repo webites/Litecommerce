@@ -20,6 +20,7 @@ final readonly class OrderDetailData
      */
     public function __construct(
         public string $id,
+        public string $number,
         public string $status,
         public string $paymentStatus,
         public string $paymentMethodId,
@@ -44,6 +45,12 @@ final readonly class OrderDetailData
         public ?\DateTimeImmutable $createdAt,
         public ?PickupFulfillmentData $pickup = null,
     ) {}
+
+    /** Whether the order is delivered to an address; pickup and digital orders have no delivery destination. */
+    public function shipsToAddress(): bool
+    {
+        return $this->deliveryName !== null && $this->deliveryPickupPointSnapshot === null;
+    }
 
     /**
      * Order-level pricing adjustments, summed from the per-line shares.

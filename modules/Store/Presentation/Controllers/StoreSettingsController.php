@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Litecommerce\Modules\Store\Presentation\Controllers;
 
 use App\Http\Controllers\Controller;
+use DateTimeZone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -49,7 +50,9 @@ final class StoreSettingsController extends Controller
                 'logo_url' => $current->logoUrl,
                 'blog_enabled' => $current->blogEnabled,
                 'products_per_page' => $current->catalogProductsPerPage,
+                'timezone' => $current->timezone,
             ],
+            'timezones' => DateTimeZone::listIdentifiers(),
         ]);
     }
 
@@ -106,9 +109,10 @@ final class StoreSettingsController extends Controller
             'store_name' => ['required', 'string', 'max:255'],
             'blog_enabled' => ['required', 'boolean'],
             'products_per_page' => ['required', 'integer', 'min:1', 'max:100'],
+            'timezone' => ['required', 'timezone:all'],
         ]);
 
-        $update->basics($data['store_name'], $data['blog_enabled'], (int) $data['products_per_page']);
+        $update->basics($data['store_name'], $data['blog_enabled'], (int) $data['products_per_page'], $data['timezone']);
 
         return back()->with('status', trans('store::panel.saved'));
     }

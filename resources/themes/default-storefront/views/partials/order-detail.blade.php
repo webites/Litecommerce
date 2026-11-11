@@ -1,9 +1,8 @@
 @php
     $order = $page->order;
     $payment = $page->latestPayment;
-    // OrderDetailData exposes raw decimal(20,6) strings — same trailing-zero trim the panel applies at its own display boundary.
-    $trim = static fn (?string $value): ?string => $value === null || ! str_contains($value, '.') ? $value : rtrim(rtrim($value, '0'), '.');
-    $shippingAddress = $order->shippingAddress ?? $order->billingAddress;
+    $shipsToAddress = $order->shipsToAddress();
+    $addressBlock = $shipsToAddress ? ($order->shippingAddress ?? $order->billingAddress) : $order->billingAddress;
     $paymentAttemptLabels = trans('orders::order.payment_status');
 @endphp
 
@@ -14,7 +13,7 @@
             <h2>{{ $heading }}</h2>
             <p>{{ trans('orders::order.confirmation_email_note') }}</p>
             <div class="meta-row">
-                {{ trans('orders::order.order_number') }} <span class="order-id">#{{ $order->id }}</span>
+                {{ trans('orders::order.order_number') }} <span class="order-id">#{{ $order->number }}</span>
                 @include('theme::partials.order-status-badge', ['status' => $order->status, 'paymentStatus' => $order->paymentStatus])
             </div>
         </div>
@@ -22,16 +21,17 @@
 @else
     <p class="crumb"><a href="{{ route('storefront.account.orders.index', ['locale' => $locale]) }}">{{ trans('orders::order.back_to_my_orders') }}</a></p>
     <div class="page-head" style="display: block;">
-        <h1>{{ trans('orders::order.order_number') }} <span class="order-id">#{{ $order->id }}</span></h1>
+        <h1>{{ trans('orders::order.order_number') }} <span class="order-id">#{{ $order->number }}</span></h1>
         <div class="meta-row">
             @include('theme::partials.order-status-badge', ['status' => $order->status, 'paymentStatus' => $order->paymentStatus])
             @if ($order->createdAt !== null)
-                <span>{{ trans('orders::order.placed_on', ['date' => $order->createdAt->format('Y-m-d H:i')]) }}</span>
+                <span>{{ trans('orders::order.placed_on', ['date' => formatDateTime($order->createdAt)]) }}</span>
             @endif
         </div>
     </div>
 @endif
 
+<div class="order-stack">
 <div class="card">
     <h3>{{ trans('orders::order.order_lines_heading') }}</h3>
     <table class="order-lines">
@@ -44,39 +44,38 @@
                         <div class="li-name">{{ $line->displayName }}</div>
                         <div class="li-sku">SKU: {{ $line->sku }}</div>
                     </td>
-                    <td class="mono">{{ $trim($line->quantity) }}</td>
-                    <td class="mono">{{ $trim($line->grossAmount) }}</td>
+                    <td class="mono">{{ formatQuantity($line->quantity) }}</td>
+                    <td class="mono">{{ formatMoney($line->grossAmount, $order->currencyCode) }}</td>
                 </tr>
             @endforeach
             @if ($order->deliveryName !== null)
                 <tr>
                     <td><div class="li-name">{{ $order->deliveryName }}{{ trans('orders::order.delivery_line_suffix') }}</div></td>
                     <td class="mono">1</td>
-                    <td class="mono">{{ $trim($order->deliveryGrossAmount) }}</td>
+                    <td class="mono">{{ formatMoney($order->deliveryGrossAmount, $order->currencyCode) }}</td>
                 </tr>
             @endif
             @foreach ($order->adjustmentTotals() as $adjustment)
                 <tr>
                     <td><div class="li-name">{{ $adjustment['label'] }}</div></td>
                     <td class="mono">1</td>
-                    <td class="mono">{{ $trim($adjustment['gross_amount']) }}</td>
+                    <td class="mono">{{ formatMoney($adjustment['gross_amount'], $order->currencyCode) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
     <div class="card-pad" style="padding-top: 14px;">
-        <div class="summary-total"><span>{{ trans('orders::order.total') }}</span><span class="val">{{ $trim($order->totalGrossAmount) }} {{ $order->currencyCode }}</span></div>
+        <div class="summary-total"><span>{{ trans('orders::order.total') }}</span><span class="val">{{ formatMoney($order->totalGrossAmount, $order->currencyCode) }}</span></div>
     </div>
 </div>
 
 <div class="two-col">
     <div class="card card-pad">
-        <p class="label-sm">{{ trans('orders::order.shipping_address') }}</p>
+        <p class="label-sm">{{ trans($shipsToAddress ? 'orders::order.shipping_address' : 'orders::order.buyer_details') }}</p>
         <address>
-            {{ $shippingAddress['recipient_name'] ?? '' }}<br>
-            {{ $shippingAddress['address_line_1'] ?? '' }}@if (! empty($shippingAddress['address_line_2'])), {{ $shippingAddress['address_line_2'] }}@endif<br>
-            {{ $shippingAddress['postal_code'] ?? '' }} {{ $shippingAddress['city'] ?? '' }}<br>
-            {{ $shippingAddress['country_code'] ?? '' }}@if (! empty($shippingAddress['phone'])) · {{ $shippingAddress['phone'] }}@endif
+            @foreach (formatAddressLines($addressBlock ?? [], includePhone: true) as $addressLine)
+                {{ $addressLine }}@if (! $loop->last)<br>@endif
+            @endforeach
         </address>
     </div>
     <div class="card card-pad">
@@ -89,7 +88,7 @@
     <div class="card card-pad">
         <p class="label-sm">{{ trans('orders::order.payment') }}</p>
         <p style="margin: 0; font-size: 14px;">
-            {{ trans('orders::order.payment_method_status_line', ['method' => $payment->methodId, 'status' => $paymentAttemptLabels[$payment->status->value] ?? $payment->status->value]) }}
+            {{ trans('orders::order.payment_method_status_line', ['method' => $payment->methodName !== '' ? $payment->methodName : $payment->methodId, 'status' => $paymentAttemptLabels[$payment->status->value] ?? $payment->status->value]) }}
         </p>
 
         @if ($payment->redirectUrl !== null)
@@ -115,17 +114,20 @@
         <p class="label-sm">{{ trans('orders::order.pickup_point') }}</p>
         <p style="margin: 0; font-size: 14px;">{{ $order->deliveryPickupPointSnapshot['name'] ?? '' }}</p>
         <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ $order->deliveryPickupPointSnapshot['address_line_1'] ?? '' }}, {{ $order->deliveryPickupPointSnapshot['city'] ?? '' }}</p>
+        @if (! empty($order->deliveryPickupPointSnapshot['instructions']))
+            <p style="margin: 8px 0 0; font-size: 13.5px;">{{ $order->deliveryPickupPointSnapshot['instructions'] }}</p>
+        @endif
         @if ($order->pickup !== null)
             <p class="pickup-state" data-pickup-state="{{ $order->pickup->state->value }}" style="margin: 10px 0 0; font-size: 14px;"><strong>{{ trans('orders::order.pickup_state.'.$order->pickup->state->value) }}</strong></p>
             @if ($order->pickup->state === \Litecommerce\Modules\Orders\Contracts\DeliveryFulfillmentState::ReadyForPickup)
                 @if ($order->pickup->readyAt !== null)
-                    <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ trans('orders::order.pickup_ready_since', ['date' => $order->pickup->readyAt->format('Y-m-d H:i')]) }}</p>
+                    <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ trans('orders::order.pickup_ready_since', ['date' => formatDateTime($order->pickup->readyAt)]) }}</p>
                 @endif
                 @if ($order->pickup->deadlineAt !== null)
-                    <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ trans('orders::order.pickup_deadline', ['date' => $order->pickup->deadlineAt->format('Y-m-d H:i')]) }}@if ($order->pickup->lapsesWhenUncollected) {{ trans('orders::order.pickup_lapses_note') }}@endif</p>
+                    <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ trans('orders::order.pickup_deadline', ['date' => formatDateTime($order->pickup->deadlineAt)]) }}@if ($order->pickup->lapsesWhenUncollected) {{ trans('orders::order.pickup_lapses_note') }}@endif</p>
                 @endif
             @elseif ($order->pickup->state === \Litecommerce\Modules\Orders\Contracts\DeliveryFulfillmentState::HandedOver && $order->pickup->handedOverAt !== null)
-                <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ trans('orders::order.pickup_handed_over_on', ['date' => $order->pickup->handedOverAt->format('Y-m-d H:i')]) }}</p>
+                <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint);">{{ trans('orders::order.pickup_handed_over_on', ['date' => formatDateTime($order->pickup->handedOverAt)]) }}</p>
             @endif
         @endif
     </div>
@@ -151,4 +153,5 @@
             {{ trans('orders::order.downloads_pending') }}
         </div>
     @endif
+</div>
 </div>

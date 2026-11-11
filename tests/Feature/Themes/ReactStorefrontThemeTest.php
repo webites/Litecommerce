@@ -85,18 +85,17 @@ final class ReactStorefrontThemeTest extends TestCase
         return ['slug' => $slug];
     }
 
-    public function test_product_page_mounts_the_product_purchase_island_with_offers_and_currency(): void
+    public function test_product_page_mounts_the_product_purchase_island_with_offers_and_formatted_prices(): void
     {
         $product = $this->createDigitalProduct('Ebook reactowy', '25.00');
 
         $response = $this->get('/pl/products/'.$product['slug'])->assertOk();
         $response->assertSee('id="product-purchase-root"', false);
-        $response->assertSee('data-currency="PLN"', false);
-        $response->assertSee('data-currency-decimals="2"', false);
         // No option axes on this product -> serialized as an empty list,
         // and a single offer (empty optionSignature) carrying the price.
         $response->assertSee("data-axes='[]'", false);
-        $response->assertSee('25.00');
+        $response->assertSee('unitAmountFormatted', false);
+        $response->assertSee('25,00', false);
     }
 
     public function test_cart_and_checkout_pages_mount_the_cart_checkout_island_with_the_right_step(): void

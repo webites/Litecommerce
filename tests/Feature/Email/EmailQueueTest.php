@@ -151,7 +151,7 @@ final class EmailQueueTest extends TestCase
             'Buyer',
             'en',
             [
-                'store_name' => 'Store', 'order_id' => 'ORDER-SECRET', 'total' => '10.00', 'currency' => 'PLN',
+                'store_name' => 'Store', 'order_id' => 'ORDER-SECRET', 'order_number' => 'ORDER-SECRET', 'total' => '10.00', 'currency' => 'PLN',
                 'order_url' => 'https://example.com/en/orders/token', 'lines' => [['name' => 'Product', 'quantity' => '1']],
             ],
             $idempotencyKey,

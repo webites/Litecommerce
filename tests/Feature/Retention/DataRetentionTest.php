@@ -201,7 +201,7 @@ final class DataRetentionTest extends TestCase
     {
         $id = (string) Str::uuid();
         DB::table('orders')->insert([
-            'id' => $id, 'source_type' => 'test', 'source_id' => 'g-1', 'status' => 'processing', 'payment_status' => 'paid',
+            'id' => $id, 'number' => crc32($id), 'public_number' => (string) crc32($id), 'source_type' => 'test', 'source_id' => 'g-1', 'status' => 'processing', 'payment_status' => 'paid',
             'payment_method_id' => 'core.bank_transfer', 'payment_kind' => 'bank_transfer', 'email' => 'guest@example.com', 'currency_code' => 'PLN', 'mode' => 'live', 'locale' => 'pl',
             'total_net_amount' => '1', 'total_vat_amount' => '0', 'total_gross_amount' => '1', 'created_at' => now(), 'updated_at' => now(),
         ]);

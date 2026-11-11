@@ -27,6 +27,7 @@ use Litecommerce\Modules\Cart\Presentation\Requests\SetCartCurrencyRequest;
 use Litecommerce\Modules\Cart\Presentation\Requests\UpdateCartItemRequest;
 use Litecommerce\Modules\Coupons\Contracts\CouponCodeAllocationOutcome;
 use Litecommerce\Modules\Media\Contracts\MediaAttachments;
+use Litecommerce\Modules\Store\Contracts\MoneyFormatter;
 
 /**
  * JSON API for the current request's cart — no storefront theme exists
@@ -126,7 +127,7 @@ final class CartController extends Controller
             $decimals,
         );
 
-        return response()->json([
+        return response()->json(app(MoneyFormatter::class)->annotate([
             'currency_code' => $priced->currencyCode,
             'lines' => array_map(fn ($line): array => [
                 'variant_id' => $line->variantId,
@@ -154,7 +155,7 @@ final class CartController extends Controller
             'total_gross_amount' => $priced->totalGrossAmount,
             'all_available' => $priced->allAvailable,
             'coupons' => array_map($this->presentCoupon(...), $priced->couponOutcomes),
-        ]);
+        ], $priced->currencyCode));
     }
 
     /**

@@ -36,6 +36,7 @@ use Litecommerce\Modules\Notifications\Presentation\Controllers\PanelMessageCont
 use Litecommerce\Modules\Orders\Presentation\Controllers\OrderController;
 use Litecommerce\Modules\Orders\Presentation\Controllers\OrderDigitalGrantController;
 use Litecommerce\Modules\Orders\Presentation\Controllers\OrderFulfillmentController;
+use Litecommerce\Modules\Orders\Presentation\Controllers\OrderSettingsController;
 use Litecommerce\Modules\Payments\Presentation\Controllers\PaymentSettingsController;
 use Litecommerce\Modules\Pricing\Presentation\Controllers\PricingController;
 use Litecommerce\Modules\Redirects\Presentation\Controllers\RedirectController;
@@ -157,6 +158,10 @@ Route::middleware(['auth', 'no-store', 'staff.permission:'.CorePermission::Acces
         ->middleware('staff.permission:'.CorePermission::ManageStoreSettings->value)
         ->name('panel.catalog.seo-settings.update');
 
+    Route::put('/panel/settings/orders', [OrderSettingsController::class, 'update'])
+        ->middleware('staff.permission:'.CorePermission::ManageStoreSettings->value)
+        ->name('panel.settings.orders.update');
+
     Route::prefix('/panel/settings/redirects')
         ->name('panel.redirects.')
         ->middleware('staff.permission:'.CorePermission::ManageStoreSettings->value)
@@ -237,11 +242,6 @@ Route::middleware(['auth', 'no-store', 'staff.permission:'.CorePermission::Acces
             Route::put('/plugin-methods/{methodId}', [DeliveryController::class, 'updatePluginMethod'])->where('methodId', '[A-Za-z0-9._-]+')->name('plugin-methods.update');
             Route::put('/{deliveryMethod}', [DeliveryController::class, 'update'])->name('update');
             Route::delete('/{deliveryMethod}', [DeliveryController::class, 'destroy'])->name('destroy');
-            Route::put('/{deliveryMethod}/region-rules', [DeliveryController::class, 'updateRegionRules'])->name('region-rules.update');
-            Route::put('/{deliveryMethod}/currencies/{currencyCode}', [DeliveryController::class, 'updateCurrencyOverride'])->whereAlpha('currencyCode')->name('currencies.update');
-            Route::post('/{deliveryMethod}/pickup-points', [DeliveryController::class, 'storePickupPoint'])->name('pickup-points.store');
-            Route::put('/{deliveryMethod}/pickup-points/{pickupPoint}', [DeliveryController::class, 'updatePickupPoint'])->name('pickup-points.update');
-            Route::delete('/{deliveryMethod}/pickup-points/{pickupPoint}', [DeliveryController::class, 'destroyPickupPoint'])->name('pickup-points.destroy');
         });
 
     Route::prefix('/panel/coupons')

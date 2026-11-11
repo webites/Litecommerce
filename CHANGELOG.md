@@ -4,6 +4,16 @@ All notable changes to Litecommerce are listed here. The project follows
 [Semantic Versioning](https://semver.org/). While the version is below 1.0.0,
 minor versions may contain breaking changes.
 
+## 0.1.5 - 2026-11-11
+
+- Orders have a short, readable number (starting at 1001) instead of a long technical identifier. It is shown to customers (confirmation page, account, guest link, e-mails, bank transfer title) and to staff (orders list, order page, returns). A prefix such as "ORD-" can be set in Settings → Orders; a new prefix applies only to orders placed afterwards. The orders list can be searched by number or e-mail. The update migration numbers existing orders from 1001 in the order they were placed; custom e-mail templates should use `{{order_number}}` instead of `{{order_id}}`.
+- The setup wizard has a new optional "Delivery" step: add local pickup with its first pickup point or a courier with a rate for one country. Delivery VAT follows the store's only tax rate when there is exactly one.
+- Delivery settings: a method is saved with one Save button (rates, regions and pickup points together); creating a method is a short wizard with a preview of how it looks at checkout; a courier method is created together with its rates.
+- Dates and times are shown in the store time zone (new setting in Settings → General), in the reader's language. Quantities, country names, addresses, phone numbers (international notation) and percentages are formatted the same way in the storefront, e-mails and panel. The order page in the panel shows the buyer's phone number.
+- Security: updated Symfony components and league/commonmark to versions that fix published advisories.
+- Narrow screens: the orders list shows cards; the setup wizard progress bar fits 480 px.
+- New dependency: giggsey/libphonenumber-for-php-lite (phone number formatting).
+
 ## 0.1.4 - 2026-11-09
 
 - Fixed checkout with local pickup: the pickup method is now ordered without the "Select a pickup point" error. A method with a single pickup point uses it automatically; with several points the customer still picks one.

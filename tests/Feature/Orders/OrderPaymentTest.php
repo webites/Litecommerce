@@ -14,6 +14,7 @@ use Litecommerce\Modules\Installer\Infrastructure\InstallationLock;
 use Litecommerce\Modules\Maintenance\Contracts\MaintenanceMode;
 use Litecommerce\Modules\Maintenance\Contracts\MaintenanceReason;
 use Litecommerce\Modules\Orders\Contracts\OrderPaymentManager;
+use Litecommerce\Modules\Payments\Application\StartPaymentAttempt;
 use Litecommerce\Modules\Payments\Contracts\InvalidPaymentNotificationException;
 use Litecommerce\Modules\Payments\Contracts\PaymentAttemptStatus;
 use Litecommerce\Modules\Payments\Contracts\PaymentAvailabilityContext;
@@ -27,6 +28,7 @@ use Litecommerce\Modules\Payments\Contracts\PaymentStartResult;
 use Litecommerce\Modules\Payments\Contracts\PaymentStatusResult;
 use Litecommerce\Modules\Payments\Contracts\VerifiedPaymentNotification;
 use Litecommerce\Modules\Payments\Infrastructure\Models\DeferredPaymentWebhook;
+use Litecommerce\Modules\Payments\Infrastructure\Models\PaymentAttempt;
 use Litecommerce\Modules\Scheduler\Application\RunDueScheduledTasks;
 use Litecommerce\Modules\Scheduler\Contracts\ScheduledTaskRegistry;
 use Litecommerce\Modules\Warehouse\Contracts\StockReservationState;
@@ -129,10 +131,32 @@ final class OrderPaymentTest extends TestCase
         $this->actingAs($administrator)->get(route('panel.orders.show', $orderId))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Panel/Orders/Show')
                 ->where('order.id', $orderId)->where('order.lines.0.display_name', 'Kubek testowy')
+                ->where('order.payment_method_name', trans('payments::methods.bank_transfer'))
+                ->where('order.payment_attempts.0.method_name', trans('payments::methods.bank_transfer'))
                 ->has('order.payment_attempts', 1));
 
         $editor = StaffAccount::factory()->withRole(SystemStaffRole::ContentEditor)->create();
         $this->actingAs($editor)->get(route('panel.orders.show', $orderId))->assertForbidden();
+    }
+
+    public function test_a_payment_method_that_is_no_longer_registered_is_labelled_by_its_id(): void
+    {
+        $registry = app(PaymentMethodRegistry::class);
+
+        $this->assertSame(trans('payments::methods.bank_transfer'), $registry->nameOf('core.bank_transfer'));
+        $this->assertSame('removed-plugin.card', $registry->nameOf('removed-plugin.card'));
+    }
+
+    public function test_the_payment_method_name_is_a_snapshot_of_the_attempt(): void
+    {
+        [$orderId] = $this->placeOrder();
+        $this->assertSame(trans('payments::methods.bank_transfer'), DB::table('payment_attempts')->where('order_id', $orderId)->value('method_name'));
+
+        DB::table('payment_attempts')->where('order_id', $orderId)->update(['method_id' => 'removed-plugin.card', 'method_name' => 'Karta (wtyczka)']);
+
+        $administrator = StaffAccount::factory()->create();
+        $this->actingAs($administrator)->get(route('panel.orders.show', $orderId))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('order.payment_attempts.0.method_name', 'Karta (wtyczka)'));
     }
 
     public function test_merchant_can_configure_the_bank_account_per_currency(): void
@@ -168,6 +192,39 @@ final class OrderPaymentTest extends TestCase
         $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'paid']);
         $this->assertSame(1, DB::table('payment_notifications')->count());
         $this->assertSame(1, DB::table('order_outbox_events')->where('event_type', 'PaymentConfirmed')->count());
+    }
+
+    public function test_a_webhook_whose_processing_failed_is_processed_when_the_provider_retries(): void
+    {
+        [$orderId, $body] = $this->onlineOrderWebhook();
+        $failures = 1;
+        PaymentAttempt::updating(function () use (&$failures): void {
+            if ($failures-- > 0) {
+                throw new \RuntimeException('Simulated deadlock.');
+            }
+        });
+
+        $this->postWebhook($body)->assertStatus(500);
+        $this->assertSame(0, DB::table('payment_notifications')->count());
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'unpaid']);
+
+        $this->postWebhook($body)->assertNoContent();
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'paid']);
+        $this->assertSame(1, DB::table('payment_notifications')->count());
+    }
+
+    public function test_a_late_pending_notification_does_not_reopen_a_failed_attempt(): void
+    {
+        [$orderId] = $this->onlineOrderWebhook();
+        $transaction = 'online:'.$orderId;
+
+        $this->postWebhook(json_encode(['transaction_id' => $transaction, 'status' => 'failed'], JSON_THROW_ON_ERROR))->assertNoContent();
+        $this->postWebhook(json_encode(['transaction_id' => $transaction, 'status' => 'pending'], JSON_THROW_ON_ERROR))->assertNoContent();
+
+        $this->assertDatabaseHas('payment_attempts', ['provider_transaction_id' => $transaction, 'status' => 'failed']);
+
+        $this->postWebhook(json_encode(['transaction_id' => $transaction, 'status' => 'succeeded'], JSON_THROW_ON_ERROR))->assertNoContent();
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'paid']);
     }
 
     public function test_webhook_rejects_an_invalid_signature_without_persisting_payload(): void
@@ -343,6 +400,65 @@ final class OrderPaymentTest extends TestCase
     }
 
     /** @return array{string, int, string, string} */
+    public function test_orders_get_sequential_readable_numbers_and_the_prefix_is_a_snapshot(): void
+    {
+        [$first] = $this->placeOrder();
+        $staff = StaffAccount::factory()->create();
+        $this->actingAs($staff)->put(route('panel.settings.orders.update'), ['number_prefix' => 'ZAM/'])->assertSessionHasNoErrors();
+        $this->app['auth']->forgetGuards();
+        [$second] = $this->placeOrder();
+
+        $firstRow = DB::table('orders')->where('id', $first)->first();
+        $secondRow = DB::table('orders')->where('id', $second)->first();
+        $this->assertSame(1001, (int) $firstRow->number);
+        $this->assertSame('1001', $firstRow->public_number);
+        $this->assertSame(1002, (int) $secondRow->number);
+        $this->assertSame('ZAM/1002', $secondRow->public_number);
+        $this->assertDatabaseHas('audit_entries', ['action' => 'orders.settings.updated']);
+
+        $transferTitle = DB::table('payment_attempts')->where('order_id', $second)->value('metadata');
+        $this->assertStringContainsString('ZAM\/1002', (string) $transferTitle);
+    }
+
+    public function test_payment_cannot_be_retried_for_a_cancelled_order(): void
+    {
+        [$orderId] = $this->placeOrder();
+        app(OrderPaymentManager::class)->cancelUnpaid($orderId, 'Rezygnacja klienta');
+
+        $this->expectException(\DomainException::class);
+        app(StartPaymentAttempt::class)->retry($orderId, 'buyer@example.com');
+    }
+
+    public function test_a_cancelled_order_is_not_pulled_back_into_payment_review(): void
+    {
+        [$orderId] = $this->placeOrder();
+        $manager = app(OrderPaymentManager::class);
+        $manager->cancelUnpaid($orderId, 'Rezygnacja klienta');
+
+        $manager->markForPaymentReview($orderId, 'Niepewny wynik');
+
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'cancelled']);
+    }
+
+    public function test_the_order_number_prefix_rejects_unsafe_values(): void
+    {
+        $staff = StaffAccount::factory()->create();
+
+        $this->actingAs($staff)->put(route('panel.settings.orders.update'), ['number_prefix' => 'TOO-LONG-PREFIX'])->assertSessionHasErrors('number_prefix');
+        $this->actingAs($staff)->put(route('panel.settings.orders.update'), ['number_prefix' => '<b>'])->assertSessionHasErrors('number_prefix');
+    }
+
+    public function test_the_panel_order_list_finds_orders_by_number_and_exposes_it(): void
+    {
+        [$orderId] = $this->placeOrder();
+        $staff = StaffAccount::factory()->create();
+
+        $this->actingAs($staff)->get(route('panel.orders.index', ['q' => '1001']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('orders.data.0.id', $orderId)->where('orders.data.0.number', '1001')->where('filters.q', '1001'));
+        $this->actingAs($staff)->get(route('panel.orders.index', ['q' => '9999']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('orders.data', 0));
+    }
+
     private function placeOrder(string $paymentMethodId = 'core.bank_transfer'): array
     {
         $staff = StaffAccount::factory()->create();

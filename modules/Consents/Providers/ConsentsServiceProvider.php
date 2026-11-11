@@ -25,7 +25,7 @@ final class ConsentsServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'consents');
         $this->commands([PruneWithdrawnConsentsCommand::class]);
 
-        $this->app->make(ScheduledTaskRegistry::class)->register('core.consents.prune_withdrawn', 86400, static function (): void {
+        $this->app->make(ScheduledTaskRegistry::class)->register('core.consents.prune_withdrawn', 86400, label: 'consents::tasks.prune_withdrawn', handler: static function (): void {
             Artisan::call('consents:prune-withdrawn');
         });
     }

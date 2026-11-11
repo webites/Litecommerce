@@ -135,7 +135,7 @@ final class EmailHistoryRetentionTest extends TestCase
             'en',
             [
                 'store_name' => 'Store',
-                'order_id' => 'ORDER-1',
+                'order_id' => 'ORDER-1', 'order_number' => '1001',
                 'total' => '10.00',
                 'currency' => 'PLN',
                 'order_url' => 'https://example.com/en/orders/token',

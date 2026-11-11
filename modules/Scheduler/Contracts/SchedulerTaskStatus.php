@@ -10,6 +10,7 @@ final readonly class SchedulerTaskStatus
 {
     public function __construct(
         public string $key,
+        public string $name,
         public int $intervalSeconds,
         public string $status,
         public ?DateTimeImmutable $nextRunAt,

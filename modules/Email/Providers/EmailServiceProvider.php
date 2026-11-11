@@ -74,17 +74,17 @@ final class EmailServiceProvider extends ServiceProvider
 
     private function registerScheduledTasks(ScheduledTaskRegistry $tasks): void
     {
-        $tasks->register('core.email.process', 60, function (): void {
+        $tasks->register('core.email.process', 60, label: 'email::tasks.process', handler: function (): void {
             $traffic = (string) config('scheduler.mode', 'traffic') === 'traffic';
             $this->app->make(ProcessEmailQueue::class)->process(
                 (int) config($traffic ? 'email.traffic_batch' : 'email.cron_batch', $traffic ? 1 : 25),
                 (int) config($traffic ? 'email.traffic_time_limit' : 'email.cron_time_limit', $traffic ? 2 : 50),
             );
         });
-        $tasks->register('core.email.prune_attachments', 86400, static function (): void {
+        $tasks->register('core.email.prune_attachments', 86400, label: 'email::tasks.prune_attachments', handler: static function (): void {
             Artisan::call('email:prune-attachments');
         });
-        $tasks->register('core.email.prune_history', 86400, static function (): void {
+        $tasks->register('core.email.prune_history', 86400, label: 'email::tasks.prune_history', handler: static function (): void {
             Artisan::call('email:prune-history');
         });
     }
@@ -97,85 +97,85 @@ final class EmailServiceProvider extends ServiceProvider
         $money = static fn (string $key): EmailVariableDefinition => new EmailVariableDefinition($key, EmailVariableType::Money, $key);
 
         $registry->register(new EmailDefinition('core.order_placed', 'email::panel.definitions.order_placed', [
-            $text('store_name'), $text('order_id'), $money('total'), $text('currency'), $url('order_url'), $list('lines'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $money('total'), $text('currency'), $text('total_formatted', false), $url('order_url'), $list('lines'),
         ], $this->defaults(
-            'Zamówienie {{order_id}} zostało przyjęte',
-            '<h1>Dziękujemy za zamówienie</h1><p>Zamówienie <strong>{{order_id}}</strong> na kwotę {{total}} {{currency}} zostało przyjęte.</p><ul>{{#lines}}<li>{{name}} × {{quantity}}</li>{{/lines}}</ul><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Order {{order_id}} has been received',
-            '<h1>Thank you for your order</h1><p>Order <strong>{{order_id}}</strong> for {{total}} {{currency}} has been received.</p><ul>{{#lines}}<li>{{name}} × {{quantity}}</li>{{/lines}}</ul><p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'total' => '99.00', 'currency' => 'PLN', 'order_url' => 'https://example.com/pl/orders/example', 'lines' => [['name' => 'Produkt', 'quantity' => '1']]]));
+            'Zamówienie {{order_number}} zostało przyjęte',
+            '<h1>Dziękujemy za zamówienie</h1><p>Zamówienie <strong>{{order_number}}</strong> na kwotę {{total_formatted}} zostało przyjęte.</p><ul>{{#lines}}<li>{{name}} × {{quantity}}</li>{{/lines}}</ul><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
+            'Order {{order_number}} has been received',
+            '<h1>Thank you for your order</h1><p>Order <strong>{{order_number}}</strong> for {{total_formatted}} has been received.</p><ul>{{#lines}}<li>{{name}} × {{quantity}}</li>{{/lines}}</ul><p><a href="{{order_url}}">View order</a></p>',
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'total' => '99.00', 'currency' => 'PLN', 'total_formatted' => '99.00 PLN', 'order_url' => 'https://example.com/pl/orders/example', 'lines' => [['name' => 'Produkt', 'quantity' => '1']]]));
 
         $registry->register(new EmailDefinition('core.payment_confirmed', 'email::panel.definitions.payment_confirmed', [
-            $text('store_name'), $text('order_id'), $money('total'), $text('currency'), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $money('total'), $text('currency'), $text('total_formatted', false), $url('order_url'),
         ], $this->defaults(
-            'Płatność za zamówienie {{order_id}} została potwierdzona',
-            '<h1>Płatność potwierdzona</h1><p>Otrzymaliśmy {{total}} {{currency}} za zamówienie {{order_id}}.</p><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Payment for order {{order_id}} confirmed',
-            '<h1>Payment confirmed</h1><p>We received {{total}} {{currency}} for order {{order_id}}.</p><p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'total' => '99.00', 'currency' => 'PLN', 'order_url' => 'https://example.com/pl/orders/example']));
+            'Płatność za zamówienie {{order_number}} została potwierdzona',
+            '<h1>Płatność potwierdzona</h1><p>Otrzymaliśmy {{total_formatted}} za zamówienie {{order_number}}.</p><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
+            'Payment for order {{order_number}} confirmed',
+            '<h1>Payment confirmed</h1><p>We received {{total_formatted}} for order {{order_number}}.</p><p><a href="{{order_url}}">View order</a></p>',
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'total' => '99.00', 'currency' => 'PLN', 'total_formatted' => '99.00 PLN', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.order_ready_for_pickup', 'email::panel.definitions.order_ready_for_pickup', [
-            $text('store_name'), $text('order_id'), $text('pickup_name'), $text('pickup_address'), $text('pickup_instructions', false), $text('pickup_deadline', false), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $text('pickup_name'), $text('pickup_address'), $text('pickup_instructions', false), $text('pickup_deadline', false), $url('order_url'),
         ], $this->defaults(
-            'Zamówienie {{order_id}} jest gotowe do odbioru',
+            'Zamówienie {{order_number}} jest gotowe do odbioru',
             '<h1>Zamówienie gotowe do odbioru</h1><p><strong>{{pickup_name}}</strong><br>{{pickup_address}}</p>{{#pickup_instructions}}<p>{{pickup_instructions}}</p>{{/pickup_instructions}}{{#pickup_deadline}}<p>Prosimy o odbiór do: <strong>{{pickup_deadline}}</strong></p>{{/pickup_deadline}}<p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Order {{order_id}} is ready for pickup',
+            'Order {{order_number}} is ready for pickup',
             '<h1>Your order is ready for pickup</h1><p><strong>{{pickup_name}}</strong><br>{{pickup_address}}</p>{{#pickup_instructions}}<p>{{pickup_instructions}}</p>{{/pickup_instructions}}{{#pickup_deadline}}<p>Please collect it by: <strong>{{pickup_deadline}}</strong></p>{{/pickup_deadline}}<p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'pickup_name' => 'Sklep główny', 'pickup_address' => 'Testowa 1, 00-001 Warszawa', 'pickup_instructions' => 'Wejście od podwórza', 'pickup_deadline' => '12 listopada 2026 12:00', 'order_url' => 'https://example.com/pl/orders/example']));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'pickup_name' => 'Sklep główny', 'pickup_address' => 'Testowa 1, 00-001 Warszawa', 'pickup_instructions' => 'Wejście od podwórza', 'pickup_deadline' => '12 listopada 2026 12:00', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.order_pickup_reminder', 'email::panel.definitions.order_pickup_reminder', [
-            $text('store_name'), $text('order_id'), $text('pickup_name'), $text('pickup_address'), $text('pickup_instructions', false), $text('pickup_deadline'), $text('lapses', false), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $text('pickup_name'), $text('pickup_address'), $text('pickup_instructions', false), $text('pickup_deadline'), $text('lapses', false), $url('order_url'),
         ], $this->defaults(
-            'Przypomnienie: zamówienie {{order_id}} czeka na odbiór',
+            'Przypomnienie: zamówienie {{order_number}} czeka na odbiór',
             '<h1>Zamówienie czeka na odbiór</h1><p><strong>{{pickup_name}}</strong><br>{{pickup_address}}</p>{{#pickup_instructions}}<p>{{pickup_instructions}}</p>{{/pickup_instructions}}<p>Prosimy o odbiór do: <strong>{{pickup_deadline}}</strong></p>{{#lapses}}<p>Nieodebrane w terminie zamówienie zostanie anulowane.</p>{{/lapses}}<p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Reminder: order {{order_id}} is waiting for pickup',
+            'Reminder: order {{order_number}} is waiting for pickup',
             '<h1>Your order is waiting for pickup</h1><p><strong>{{pickup_name}}</strong><br>{{pickup_address}}</p>{{#pickup_instructions}}<p>{{pickup_instructions}}</p>{{/pickup_instructions}}<p>Please collect it by: <strong>{{pickup_deadline}}</strong></p>{{#lapses}}<p>If it is not collected in time, the order will be cancelled.</p>{{/lapses}}<p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'pickup_name' => 'Sklep główny', 'pickup_address' => 'Testowa 1, 00-001 Warszawa', 'pickup_instructions' => 'Wejście od podwórza', 'pickup_deadline' => '12 listopada 2026 12:00', 'lapses' => '1', 'order_url' => 'https://example.com/pl/orders/example']));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'pickup_name' => 'Sklep główny', 'pickup_address' => 'Testowa 1, 00-001 Warszawa', 'pickup_instructions' => 'Wejście od podwórza', 'pickup_deadline' => '12 listopada 2026 12:00', 'lapses' => '1', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.order_pickup_expired', 'email::panel.definitions.order_pickup_expired', [
-            $text('store_name'), $text('order_id'), $text('pickup_deadline', false), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $text('pickup_deadline', false), $url('order_url'),
         ], $this->defaults(
-            'Zamówienie {{order_id}} zostało anulowane',
+            'Zamówienie {{order_number}} zostało anulowane',
             '<h1>Zamówienie anulowane</h1><p>Zamówienie nie zostało odebrane{{#pickup_deadline}} do {{pickup_deadline}}{{/pickup_deadline}}, dlatego je anulowaliśmy, a towar wrócił do sprzedaży.</p><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Order {{order_id}} was cancelled',
+            'Order {{order_number}} was cancelled',
             '<h1>Order cancelled</h1><p>The order was not collected{{#pickup_deadline}} by {{pickup_deadline}}{{/pickup_deadline}}, so we cancelled it and put the items back on sale.</p><p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'pickup_deadline' => '12 listopada 2026 12:00', 'order_url' => 'https://example.com/pl/orders/example']));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'pickup_deadline' => '12 listopada 2026 12:00', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.order_status_changed', 'email::panel.definitions.order_status_changed', [
-            $text('store_name'), $text('order_id'), $text('old_status'), $text('new_status'), $text('reason', false), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $text('old_status'), $text('new_status'), $text('reason', false), $url('order_url'),
         ], $this->defaults(
-            'Nowy status zamówienia {{order_id}}',
+            'Nowy status zamówienia {{order_number}}',
             '<h1>Status zamówienia został zmieniony</h1><p>{{old_status}} → <strong>{{new_status}}</strong></p>{{#reason}}<p>{{reason}}</p>{{/reason}}<p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'New status for order {{order_id}}',
+            'New status for order {{order_number}}',
             '<h1>Your order status changed</h1><p>{{old_status}} → <strong>{{new_status}}</strong></p>{{#reason}}<p>{{reason}}</p>{{/reason}}<p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'old_status' => 'Oczekuje', 'new_status' => 'W realizacji', 'reason' => 'Przykładowa informacja', 'order_url' => 'https://example.com/pl/orders/example']));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'old_status' => 'Oczekuje', 'new_status' => 'W realizacji', 'reason' => 'Przykładowa informacja', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.digital_access_granted', 'email::panel.definitions.digital_access_granted', [
-            $text('store_name'), $text('order_id'), $list('downloads'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $list('downloads'),
         ], $this->defaults(
-            'Pliki do zamówienia {{order_id}} są dostępne',
+            'Pliki do zamówienia {{order_number}} są dostępne',
             '<h1>Twoje pliki są gotowe</h1><ul>{{#downloads}}<li><a href="{{url}}">{{filename}}</a></li>{{/downloads}}</ul>',
-            'Files for order {{order_id}} are ready',
+            'Files for order {{order_number}} are ready',
             '<h1>Your files are ready</h1><ul>{{#downloads}}<li><a href="{{url}}">{{filename}}</a></li>{{/downloads}}</ul>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'downloads' => [['filename' => 'ebook.pdf', 'url' => 'https://example.com/downloads/example']]], true, true, 90));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'downloads' => [['filename' => 'ebook.pdf', 'url' => 'https://example.com/downloads/example']]], true, true, 90));
 
         $registry->register(new EmailDefinition('core.return_decided', 'email::panel.definitions.return_decided', [
-            $text('store_name'), $text('order_id'), $text('decision'), $text('details'), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $text('decision'), $text('details'), $url('order_url'),
         ], $this->defaults(
-            'Decyzja dotycząca zwrotu dla zamówienia {{order_id}}',
+            'Decyzja dotycząca zwrotu dla zamówienia {{order_number}}',
             '<h1>Decyzja dotycząca zwrotu</h1><p>{{decision}}</p><p>{{details}}</p><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Return decision for order {{order_id}}',
+            'Return decision for order {{order_number}}',
             '<h1>Return decision</h1><p>{{decision}}</p><p>{{details}}</p><p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'decision' => 'Zaakceptowano', 'details' => 'Przykładowa decyzja', 'order_url' => 'https://example.com/pl/orders/example']));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'decision' => 'Zaakceptowano', 'details' => 'Przykładowa decyzja', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.manual_customer_message', 'email::panel.definitions.manual_customer_message', [
-            $text('store_name'), $text('order_id'), $text('message'), $url('order_url'),
+            $text('store_name'), $text('order_id'), $text('order_number'), $text('message'), $url('order_url'),
         ], $this->defaults(
-            'Wiadomość dotycząca zamówienia {{order_id}}',
+            'Wiadomość dotycząca zamówienia {{order_number}}',
             '<h1>Wiadomość od sklepu</h1><p>{{message}}</p><p><a href="{{order_url}}">Zobacz zamówienie</a></p>',
-            'Message about order {{order_id}}',
+            'Message about order {{order_number}}',
             '<h1>Message from the store</h1><p>{{message}}</p><p><a href="{{order_url}}">View order</a></p>',
-        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'message' => 'Przykładowa wiadomość', 'order_url' => 'https://example.com/pl/orders/example']));
+        ), ['store_name' => 'Litecommerce', 'order_id' => 'ORDER-1', 'order_number' => '1001', 'message' => 'Przykładowa wiadomość', 'order_url' => 'https://example.com/pl/orders/example']));
 
         $registry->register(new EmailDefinition('core.customer_account_deletion_confirm', 'email::panel.definitions.customer_account_deletion_confirm', [$text('store_name'), $url('confirm_url')], $this->defaults(
             'Potwierdź usunięcie konta', '<h1>Potwierdź usunięcie konta</h1><p>Aby usunąć konto w sklepie {{store_name}}, kliknij poniższy link. Jeśli to nie Ty, zignoruj tę wiadomość.</p><p><a href="{{confirm_url}}">Potwierdź usunięcie konta</a></p>',

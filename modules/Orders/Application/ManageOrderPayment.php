@@ -81,10 +81,7 @@ final class ManageOrderPayment implements OrderPaymentManager
             $this->history($order, $oldStatus, OrderStatus::Processing->value, 'Potwierdzono pełną wpłatę.');
             $this->outbox($order, 'PaymentConfirmed', ['attempt_id' => $attemptId, 'paid_at' => $paidAt->format(DATE_ATOM)]);
 
-            // "Po potwierdzeniu zapłaty ... dostęp niezależny od wysyłki
-            // części fizycznej" — granted only for this 'confirmed' branch,
-            // never for late()'s Expired/Released outcome below, which
-            // 05-orders.md requires a staff decision for instead.
+            // Digital access is granted only for a confirmed payment, never for a late one.
             $digitalGrants = [];
             if ($order->mode !== 'test') {
                 foreach ($order->lines as $line) {
@@ -128,7 +125,7 @@ final class ManageOrderPayment implements OrderPaymentManager
     {
         DB::transaction(function () use ($orderId, $reason): void {
             $order = Order::query()->with(['lines', 'couponUsages'])->lockForUpdate()->findOrFail($orderId);
-            if ($order->payment_status !== OrderPaymentStatus::Unpaid->value) {
+            if ($order->payment_status !== OrderPaymentStatus::Unpaid->value || $order->status === OrderStatus::Cancelled->value) {
                 return;
             }
             $this->releaseCoupons($order);

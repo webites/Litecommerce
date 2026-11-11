@@ -12,13 +12,13 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { formatMoney as money } from '@/lib/money';
+import { formatDateTime } from '@/lib/format';
 
 const lineStatusTones = { pending: 'warning', approved: 'success', rejected: 'danger' };
 const term = { fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 };
 const value = { margin: 0, color: 'var(--text-primary)', fontSize: 14 };
 
-function date(v) { return v ? new Date(v).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }) : '—'; }
-function money(v, currency, places) { if (v === null || v === undefined) return '—'; const [whole, fraction = ''] = String(v).split('.'); return `${whole}${places ? `,${fraction.padEnd(places, '0').slice(0, places)}` : ''} ${currency}`; }
 
 export default function Show({ returnRequest, order, reasons }) {
     const t = useTranslate();
@@ -67,7 +67,7 @@ export default function Show({ returnRequest, order, reasons }) {
     };
 
     return (
-        <AuthenticatedLayout header={<PageHeader title={t('returns.show_page_title', 'Return request')} description={t('returns.order_label', 'Order :id', { id: returnRequest.order_id })} actions={<Button href={route('panel.orders.show', returnRequest.order_id)} variant="outline" size="sm">{t('returns.view_order', 'View order')}</Button>} />}>
+        <AuthenticatedLayout header={<PageHeader title={t('returns.show_page_title', 'Return request')} description={t('returns.order_label', 'Order :id', { id: order.number })} actions={<Button href={route('panel.orders.show', returnRequest.order_id)} variant="outline" size="sm">{t('returns.view_order', 'View order')}</Button>} />}>
             <Head title={t('returns.show_page_title', 'Return request')} />
             <div style={{ padding: 24, maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {flash.status && <Alert tone="success">{flash.status}</Alert>}
@@ -77,7 +77,7 @@ export default function Show({ returnRequest, order, reasons }) {
                         <div><dt style={term}>{t('returns.column_status', 'Status')}</dt><dd style={value}><Badge tone={returnRequest.status === 'open' ? 'warning' : 'neutral'}>{returnRequest.status === 'open' ? t('returns.status_open', 'Open') : t('returns.status_closed', 'Closed')}</Badge></dd></div>
                         <div><dt style={term}>{t('returns.fields.source', 'Source')}</dt><dd style={value}>{returnRequest.source === 'staff' ? t('returns.source_staff', 'Staff') : t('returns.source_customer', 'Customer')}</dd></div>
                         <div><dt style={term}>{t('returns.column_customer', 'Customer')}</dt><dd style={value}>{returnRequest.email}</dd></div>
-                        <div><dt style={term}>{t('returns.column_created_at', 'Requested')}</dt><dd style={value}>{date(returnRequest.created_at)}</dd></div>
+                        <div><dt style={term}>{t('returns.column_created_at', 'Requested')}</dt><dd style={value}>{formatDateTime(returnRequest.created_at)}</dd></div>
                     </dl>
                     {returnRequest.comment && <div style={{ marginTop: 16 }}><div style={term}>{t('returns.comment_label', 'Comment')}</div><div style={value}>{returnRequest.comment}</div></div>}
                 </Card>
@@ -158,7 +158,7 @@ export default function Show({ returnRequest, order, reasons }) {
                                         <div><dt style={term}>{t('returns.refund_money_amount', 'To refund as money')}</dt><dd style={{ ...value, fontWeight: 700 }}>{money(refund.money_refund_amount, order.currency_code, order.currency_decimal_places)}</dd></div>
                                     </dl>
                                     {refund.paid_out_at ? (
-                                        <Badge tone="success">{t('returns.paid_out_label', 'Paid out :date — ref. :reference', { date: date(refund.paid_out_at), reference: refund.payout_reference })}</Badge>
+                                        <Badge tone="success">{t('returns.paid_out_label', 'Paid out :date — ref. :reference', { date: formatDateTime(refund.paid_out_at), reference: refund.payout_reference })}</Badge>
                                     ) : (
                                         <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap' }}>
                                             <Input label={t('returns.payout_reference_label', 'Payout reference')} value={payoutDrafts[refund.id] || ''} onChange={(e) => setPayoutField(refund.id, e.target.value)} />

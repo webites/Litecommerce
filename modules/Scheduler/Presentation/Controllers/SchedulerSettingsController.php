@@ -36,6 +36,7 @@ final class SchedulerSettingsController extends Controller
             'can_configure_cron' => $this->cron->canAttempt(),
             'tasks' => array_map(static fn (SchedulerTaskStatus $task): array => [
                 'key' => $task->key,
+                'name' => $task->name,
                 'interval_seconds' => $task->intervalSeconds,
                 'status' => $task->status,
                 'next_run_at' => $task->nextRunAt?->format(DATE_ATOM),

@@ -5,9 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { currentLocale, t } from '../api';
 import CountrySelect from './CountrySelect';
 
-const fmt = (n) =>
-    new Intl.NumberFormat(currentLocale() === 'pl' ? 'pl-PL' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n)) + ' zł';
-
 function PlaceholderPhotoIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -344,8 +341,8 @@ function CartView({ cart, busy, onChangeQuantity, onRemoveLine, onApplyCoupon, o
                                             <button type="button" disabled={busy} onClick={() => onChangeQuantity(line.variant_id, Number(line.quantity) + 1)}>+</button>
                                         </div>
                                     </td>
-                                    <td className="mono">{fmt(line.unit_amount)}</td>
-                                    <td className="mono">{fmt(line.line_gross_amount)}</td>
+                                    <td className="mono">{line.unit_amount_formatted}</td>
+                                    <td className="mono">{line.line_gross_amount_formatted}</td>
                                     <td><button type="button" className="remove-btn" disabled={busy} onClick={() => onRemoveLine(line.variant_id)}>{t('cart.remove')}</button></td>
                                 </tr>
                             ))}
@@ -376,7 +373,7 @@ function CartView({ cart, busy, onChangeQuantity, onRemoveLine, onApplyCoupon, o
                         <ul className="coupon-list">
                             {cart.coupons.map((c) => (
                                 <li key={c.code}>
-                                    <span><span className="code">{c.code}</span> ({c.status}) — {fmt(c.allocated_amount)}</span>
+                                    <span><span className="code">{c.code}</span> ({c.status}) — {c.allocated_amount_formatted}</span>
                                     <button type="button" className="remove-btn" onClick={() => onRemoveCoupon(c.code)}>{t('cart.remove')}</button>
                                 </li>
                             ))}
@@ -386,9 +383,9 @@ function CartView({ cart, busy, onChangeQuantity, onRemoveLine, onApplyCoupon, o
             </div>
 
             <div className="card summary">
-                <div className="summary-line"><span>{t('cart.subtotal')}</span><span className="val">{fmt(cart.subtotal_gross_amount)}</span></div>
-                <div className="summary-line"><span>{t('cart.discount')}</span><span className="val">-{fmt(cart.discount_amount ?? 0)}</span></div>
-                <div className="summary-total"><span>{t('cart.total')}</span><span className="val">{fmt(cart.total_gross_amount)}</span></div>
+                <div className="summary-line"><span>{t('cart.subtotal')}</span><span className="val">{cart.subtotal_gross_amount_formatted}</span></div>
+                <div className="summary-line"><span>{t('cart.discount')}</span><span className="val">{Number(cart.discount_amount) > 0 ? '-' : ''}{cart.discount_amount_formatted}</span></div>
+                <div className="summary-total"><span>{t('cart.total')}</span><span className="val">{cart.total_gross_amount_formatted}</span></div>
                 <a className="btn btn-primary btn-block" href={`/${currentLocale()}/checkout`} style={{ marginTop: 18 }}>{t('cart.go_to_checkout')}</a>
             </div>
         </div>
@@ -416,6 +413,7 @@ function CheckoutView({
     confirmError, busy, onConfirm,
 }) {
     const deliveryAmount = price.delivery?.selected?.gross_amount;
+    const deliveryFormatted = price.delivery?.selected?.gross_amount_formatted;
 
     return (
         <div className="layout-2col">
@@ -542,7 +540,7 @@ function CheckoutView({
                                 tabIndex={0}
                             >
                                 <div className="left"><span className="radio-dot" /><span>{row.label}{row.detail && <small className="radio-detail">{row.detail}</small>}</span></div>
-                                <span className="price mono">{Number(row.gross_amount) === 0 ? t('checkout.free') : fmt(row.gross_amount)}</span>
+                                <span className="price mono">{Number(row.gross_amount) === 0 ? t('checkout.free') : row.gross_amount_formatted}</span>
                             </div>
                         );
                     })}
@@ -568,10 +566,10 @@ function CheckoutView({
                 </div>
 
                 <div className="card summary">
-                    <div className="summary-line"><span>{t('checkout.line_items_label')} ({cart?.lines?.length ?? 0})</span><span className="val">{fmt(price.subtotal_gross_amount)}</span></div>
-                    <div className="summary-line"><span>{t('checkout.delivery_label')}</span><span className="val">{deliveryAmount == null ? '—' : Number(deliveryAmount) === 0 ? t('checkout.free') : fmt(deliveryAmount)}</span></div>
-                    <div className="summary-line"><span>{t('checkout.discount_label')}</span><span className="val">-{fmt(price.discount_amount ?? 0)}</span></div>
-                    <div className="summary-total"><span>{t('checkout.total_label')}</span><span className="val">{fmt(price.grand_total_gross_amount)}</span></div>
+                    <div className="summary-line"><span>{t('checkout.line_items_label')} ({cart?.lines?.length ?? 0})</span><span className="val">{price.subtotal_gross_amount_formatted}</span></div>
+                    <div className="summary-line"><span>{t('checkout.delivery_label')}</span><span className="val">{deliveryAmount == null ? '—' : Number(deliveryAmount) === 0 ? t('checkout.free') : deliveryFormatted}</span></div>
+                    <div className="summary-line"><span>{t('checkout.discount_label')}</span><span className="val">{Number(price.discount_amount) > 0 ? '-' : ''}{price.discount_amount_formatted}</span></div>
+                    <div className="summary-total"><span>{t('checkout.total_label')}</span><span className="val">{price.grand_total_gross_amount_formatted}</span></div>
 
                     {confirmError && (
                         <div className="banner banner-error">

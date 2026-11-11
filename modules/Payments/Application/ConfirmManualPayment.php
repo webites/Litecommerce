@@ -26,11 +26,7 @@ final class ConfirmManualPayment implements PaymentConfirmation
     {
         $order = $this->orders->find($orderId) ?? throw new \InvalidArgumentException("Unknown order [{$orderId}].");
         $method = $this->methods->get($order->paymentMethodId);
-        // "COD ... opłacone po pobraniu od klienta" / "Wydanie płatnego na
-        // miejscu wymaga potwierdzenia otrzymania wpłaty" (06-fulfillment.md)
-        // — cash-on-delivery and pay-on-pickup are confirmed manually
-        // through this same generic mechanism, once staff collect the
-        // money at dispatch/pickup.
+        // Cash on delivery and pay on pickup are confirmed manually through this same mechanism.
         if (! in_array($method->descriptor()->kind, ['bank_transfer', 'cash_on_delivery', 'pay_on_pickup'], true)) {
             throw new \DomainException('Ręczne potwierdzenie w MVP jest dostępne tylko dla przelewu, pobrania i płatności na miejscu.');
         }
@@ -54,7 +50,7 @@ final class ConfirmManualPayment implements PaymentConfirmation
             } else {
                 $attempt = PaymentAttempt::query()->create([
                     'id' => (string) Str::uuid(), 'order_id' => $orderId, 'provider_id' => 'core',
-                    'method_id' => $method->descriptor()->id, 'provider_transaction_id' => $transactionId,
+                    'method_id' => $method->descriptor()->id, 'method_name' => $method->descriptor()->name, 'provider_transaction_id' => $transactionId,
                     'status' => PaymentAttemptStatus::Pending->value, 'amount' => $order->amount,
                     'currency_code' => $order->currencyCode, 'mode' => $order->mode,
                     'metadata' => ['confirmed_by_staff_id' => $actorId],

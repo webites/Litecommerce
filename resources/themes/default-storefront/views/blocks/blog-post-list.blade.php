@@ -28,7 +28,7 @@
                     @endif
                     <div class="blog-card__body">
                         @if ($post->publishedAt)
-                            <time datetime="{{ $post->publishedAt }}">{{ \Illuminate\Support\Carbon::parse($post->publishedAt)->translatedFormat('j F Y') }}</time>
+                            <time datetime="{{ $post->publishedAt }}">{{ formatDate($post->publishedAt) }}</time>
                         @endif
                         <h2><a href="{{ route('storefront.blog.show', ['locale' => $locale, 'slug' => $post->slug]) }}">{{ $post->title }}</a></h2>
                         @if (($props['show_excerpt'] ?? '1') === '1' && $post->excerpt)

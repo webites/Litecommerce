@@ -24,7 +24,9 @@ final class ConfirmHandover
 
     public function execute(string $orderId, string $actorId, ?string $paymentReference, ?\DateTimeImmutable $paidAt): bool
     {
-        return DB::transaction(function () use ($orderId, $actorId, $paymentReference, $paidAt): bool {
+        $refusal = null;
+
+        $handedOver = DB::transaction(function () use ($orderId, $actorId, $paymentReference, $paidAt, &$refusal): bool {
             $locked = LockedPickupOrder::require($orderId);
             $order = $locked->order;
             $delivery = $locked->delivery;
@@ -52,7 +54,9 @@ final class ConfirmHandover
             }
 
             if ($order->payment_status === OrderPaymentStatus::LatePayment->value && $paymentRecorded) {
-                throw new Invalid(Invalid::STOCK_UNAVAILABLE, 'Rezerwacja towaru wygasła lub została zwolniona; sprawa wymaga decyzji pracownika.');
+                $refusal = self::stockUnavailable(latePayment: true);
+
+                return false;
             }
 
             if (! in_array($order->payment_status, [OrderPaymentStatus::Paid->value, OrderPaymentStatus::Overpaid->value], true)) {
@@ -60,13 +64,17 @@ final class ConfirmHandover
             }
 
             try {
-                foreach ($order->lines as $line) {
-                    if ($line->stock_reservation_id !== null) {
-                        $this->stock->fulfill((int) $line->stock_reservation_id, $actorId);
+                DB::transaction(function () use ($order, $actorId): void {
+                    foreach ($order->lines as $line) {
+                        if ($line->stock_reservation_id !== null) {
+                            $this->stock->fulfill((int) $line->stock_reservation_id, $actorId);
+                        }
                     }
-                }
+                });
             } catch (InvalidReservationStateException) {
-                throw new Invalid(Invalid::STOCK_UNAVAILABLE, 'Rezerwacja towaru wygasła lub została zwolniona; sprawa wymaga decyzji pracownika.');
+                $refusal = self::stockUnavailable(latePayment: false, paymentKept: $paymentRecorded);
+
+                return false;
             }
 
             $order->update(['version' => $order->version + 1]);
@@ -80,5 +88,22 @@ final class ConfirmHandover
 
             return true;
         });
+
+        if ($refusal !== null) {
+            throw $refusal;
+        }
+
+        return $handedOver;
+    }
+
+    private static function stockUnavailable(bool $latePayment, bool $paymentKept = true): Invalid
+    {
+        $message = match (true) {
+            $latePayment => 'Rezerwacja towaru wygasła lub została zwolniona. Towaru nie wydano, a otrzymana wpłata została zapisana jako spóźniona — złóż nowe zamówienie albo zwróć wpłatę.',
+            $paymentKept => 'Rezerwacja towaru wygasła lub została zwolniona. Towaru nie wydano, a otrzymana wpłata została zapisana — sprawa wymaga decyzji pracownika.',
+            default => 'Rezerwacja towaru wygasła lub została zwolniona; sprawa wymaga decyzji pracownika.',
+        };
+
+        return new Invalid(Invalid::STOCK_UNAVAILABLE, $message);
     }
 }

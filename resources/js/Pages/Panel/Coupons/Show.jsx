@@ -10,6 +10,8 @@ import Table from '@/Components/ui/Table';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useTranslate } from '@/lib/i18n';
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { formatMoney as money } from '@/lib/money';
+import { formatDateTime } from '@/lib/format';
 
 export default function Show({ coupon, base_currency_code: baseCurrencyCode, ledger, reservations }) {
     const t = useTranslate();
@@ -61,15 +63,15 @@ export default function Show({ coupon, base_currency_code: baseCurrencyCode, led
                     <div style={{ display: 'flex', gap: 32 }}>
                         <div>
                             <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('coupons.show.available', 'Available')}</div>
-                            <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700 }}>{coupon.available_balance} {baseCurrencyCode}</div>
+                            <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700 }}>{money(coupon.available_balance, baseCurrencyCode)}</div>
                         </div>
                         <div>
                             <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('coupons.show.reserved', 'Reserved')}</div>
-                            <div style={{ fontSize: 18 }}>{coupon.reserved_amount} {baseCurrencyCode}</div>
+                            <div style={{ fontSize: 18 }}>{money(coupon.reserved_amount, baseCurrencyCode)}</div>
                         </div>
                         <div>
                             <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{t('coupons.show.total_spent', 'Total spent')}</div>
-                            <div style={{ fontSize: 18 }}>{coupon.balance} {baseCurrencyCode}</div>
+                            <div style={{ fontSize: 18 }}>{money(coupon.balance, baseCurrencyCode)}</div>
                         </div>
                     </div>
 
@@ -127,9 +129,9 @@ export default function Show({ coupon, base_currency_code: baseCurrencyCode, led
                 <Card title={t('coupons.show.ledger_title', 'Balance history')}>
                     <Table
                         columns={[
-                            { header: t('coupons.show.ledger_column_date', 'Date'), render: (e) => (e.occurred_at ? new Date(e.occurred_at).toLocaleString('pl-PL') : '—') },
+                            { header: t('coupons.show.ledger_column_date', 'Date'), render: (e) => formatDateTime(e.occurred_at) },
                             { header: t('coupons.show.ledger_column_type', 'Type'), render: (e) => ledgerTypeLabels[e.type] ?? e.type },
-                            { header: t('coupons.show.ledger_column_amount', 'Amount'), align: 'right', render: (e) => `${e.amount} ${baseCurrencyCode ?? ''}` },
+                            { header: t('coupons.show.ledger_column_amount', 'Amount'), align: 'right', render: (e) => money(e.amount, baseCurrencyCode) },
                             { header: t('coupons.show.ledger_column_reference', 'Reference'), render: (e) => (e.reference_type ? `${e.reference_type} #${e.reference_id}` : '—') },
                             { header: t('coupons.show.ledger_column_reason', 'Reason'), render: (e) => e.reason ?? '—' },
                         ]}
@@ -140,10 +142,10 @@ export default function Show({ coupon, base_currency_code: baseCurrencyCode, led
                 <Card title={t('coupons.show.reservations_title', 'Reservations')}>
                     <Table
                         columns={[
-                            { header: t('coupons.show.reservations_column_amount', 'Amount'), align: 'right', render: (r) => `${r.amount} ${baseCurrencyCode ?? ''}` },
+                            { header: t('coupons.show.reservations_column_amount', 'Amount'), align: 'right', render: (r) => money(r.amount, baseCurrencyCode) },
                             { header: t('coupons.show.reservations_column_state', 'State'), render: (r) => <Badge tone={reservationStateTone[r.state] ?? 'neutral'}>{reservationStateLabels[r.state] ?? r.state}</Badge> },
                             { header: t('coupons.show.reservations_column_reference', 'Reference'), render: (r) => `${r.reference_type} #${r.reference_id}` },
-                            { header: t('coupons.show.reservations_column_expires', 'Expires'), render: (r) => (r.expires_at ? new Date(r.expires_at).toLocaleString('pl-PL') : t('coupons.fields.valid_until_unlimited', 'Unlimited')) },
+                            { header: t('coupons.show.reservations_column_expires', 'Expires'), render: (r) => formatDateTime(r.expires_at, t('coupons.fields.valid_until_unlimited', 'Unlimited')) },
                         ]}
                         rows={reservations}
                     />

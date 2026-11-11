@@ -117,13 +117,20 @@ final class DeliveryController extends Controller
     public function store(Request $request, ManageDeliveryMethods $manager): RedirectResponse
     {
         $data = $this->validated($request);
+        $point = null;
+        $regionRules = null;
 
         if ($data['kind'] === 'pickup') {
             $point = $request->validate($this->pickupPointRules('pickup_point.'))['pickup_point'];
-            $manager->createWithPickupPoint($data, $point);
         } else {
-            $manager->create($data);
+            $regionRules = $this->presentRegionRules($request->validate($this->regionRuleRules())['region_rules'] ?? []);
+
+            if ($regionRules === false) {
+                return back()->withErrors(['region_rules' => trans('delivery::panel.region_rate_requires_price')]);
+            }
         }
+
+        $manager->createConfigured($data, $point, $regionRules === [] ? null : $regionRules);
 
         return back()->with('status', trans('delivery::panel.method_added'));
     }
@@ -131,12 +138,38 @@ final class DeliveryController extends Controller
     public function update(Request $request, DeliveryMethod $deliveryMethod, ManageDeliveryMethods $manager): RedirectResponse
     {
         $data = $this->validated($request);
+        $sections = $request->validate([
+            'currency_overrides' => ['nullable', 'array'],
+            'currency_overrides.*.currency_code' => ['required', 'string', 'size:3', 'exists:shop_currencies,code'],
+            'currency_overrides.*.price_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency_overrides.*.free_threshold_amount' => ['nullable', 'numeric', 'min:0'],
+            ...$this->regionRuleRules(),
+            'pickup_points' => ['nullable', 'array'],
+            'pickup_points.*.id' => ['nullable', 'integer', Rule::exists('delivery_pickup_points', 'id')->where('delivery_method_id', $deliveryMethod->id)],
+            ...$this->pickupPointRules('pickup_points.*.'),
+        ]);
 
-        if ($data['kind'] === 'pickup' && $data['active'] && ! $deliveryMethod->pickupPoints()->where('active', true)->exists()) {
+        $isPickup = $data['kind'] === 'pickup';
+        $regionRules = null;
+
+        if (! $isPickup && isset($sections['region_rules'])) {
+            $regionRules = $this->presentRegionRules($sections['region_rules']);
+
+            if ($regionRules === false) {
+                return back()->withErrors(['region_rules' => trans('delivery::panel.region_rate_requires_price')]);
+            }
+        }
+
+        $pickupPoints = $isPickup ? ($sections['pickup_points'] ?? null) : null;
+        $hasActivePoint = $pickupPoints === null
+            ? $deliveryMethod->pickupPoints()->where('active', true)->exists()
+            : array_filter($pickupPoints, static fn (array $point): bool => (bool) $point['active']) !== [];
+
+        if ($isPickup && $data['active'] && ! $hasActivePoint) {
             return back()->withErrors(['active' => trans('delivery::panel.pickup_requires_point')]);
         }
 
-        $manager->update($deliveryMethod, $data);
+        $manager->save($deliveryMethod, $data, $sections['currency_overrides'] ?? null, $regionRules, $pickupPoints);
 
         return back()->with('status', trans('delivery::panel.method_saved'));
     }
@@ -148,66 +181,44 @@ final class DeliveryController extends Controller
         return back()->with('status', trans('delivery::panel.method_removed'));
     }
 
-    public function updateRegionRules(Request $request, DeliveryMethod $deliveryMethod, ManageDeliveryMethods $manager): RedirectResponse
+    /** @return array<string, list<string>> */
+    private function regionRuleRules(): array
     {
-        $data = $request->validate([
-            'rules' => ['present', 'array'],
-            'rules.*.rule_type' => ['required', 'in:exclude,country_rate,continent_rate'],
-            'rules.*.country_code' => ['nullable', 'string', 'size:2'],
-            'rules.*.continent_code' => ['nullable', 'string', 'size:2'],
-            'rules.*.price_amount' => ['nullable', 'numeric', 'min:0'],
-            'rules.*.currency_overrides' => ['array'],
-            'rules.*.currency_overrides.*.currency_code' => ['required', 'string', 'size:3'],
-            'rules.*.currency_overrides.*.price_amount' => ['required', 'numeric', 'min:0'],
-        ]);
+        return [
+            'region_rules' => ['nullable', 'array'],
+            'region_rules.*.rule_type' => ['required', 'in:exclude,country_rate,continent_rate'],
+            'region_rules.*.country_code' => ['nullable', 'required_if:region_rules.*.rule_type,country_rate,exclude', 'string', 'size:2'],
+            'region_rules.*.continent_code' => ['nullable', 'required_if:region_rules.*.rule_type,continent_rate', 'string', 'size:2'],
+            'region_rules.*.price_amount' => ['nullable', 'numeric', 'min:0'],
+            'region_rules.*.currency_overrides' => ['array'],
+            'region_rules.*.currency_overrides.*.currency_code' => ['required', 'string', 'size:3'],
+            'region_rules.*.currency_overrides.*.price_amount' => ['required', 'numeric', 'min:0'],
+        ];
+    }
 
-        foreach ($data['rules'] as $rule) {
-            if ($rule['rule_type'] !== 'exclude' && $rule['price_amount'] === null) {
-                return back()->withErrors(['rules' => trans('delivery::panel.region_rate_requires_price')]);
+    /**
+     * @param  list<array<string, mixed>>  $rules
+     * @return list<array<string, mixed>>|false false when a rate rule has no price
+     */
+    private function presentRegionRules(array $rules): array|false
+    {
+        $presented = [];
+
+        foreach ($rules as $rule) {
+            if ($rule['rule_type'] !== 'exclude' && ($rule['price_amount'] ?? null) === null) {
+                return false;
             }
+
+            $presented[] = [
+                'rule_type' => $rule['rule_type'],
+                'country_code' => $rule['country_code'] ?? null,
+                'continent_code' => $rule['continent_code'] ?? null,
+                'price_amount' => $rule['rule_type'] === 'exclude' ? null : $rule['price_amount'],
+                'currency_overrides' => $rule['currency_overrides'] ?? [],
+            ];
         }
 
-        $manager->replaceRegionRules($deliveryMethod, array_map(static fn (array $rule): array => [
-            'rule_type' => $rule['rule_type'],
-            'country_code' => $rule['country_code'] ?? null,
-            'continent_code' => $rule['continent_code'] ?? null,
-            'price_amount' => $rule['rule_type'] === 'exclude' ? null : $rule['price_amount'],
-            'currency_overrides' => $rule['currency_overrides'] ?? [],
-        ], $data['rules']));
-
-        return back()->with('status', trans('delivery::panel.regions_saved'));
-    }
-
-    public function updateCurrencyOverride(Request $request, DeliveryMethod $deliveryMethod, string $currencyCode, ManageDeliveryMethods $manager): RedirectResponse
-    {
-        $data = $request->validate([
-            'price_amount' => ['nullable', 'numeric', 'min:0'],
-            'free_threshold_amount' => ['nullable', 'numeric', 'min:0'],
-        ]);
-        $manager->setCurrencyOverride($deliveryMethod, strtoupper($currencyCode), $data['price_amount'] ?? null, $data['free_threshold_amount'] ?? null);
-
-        return back()->with('status', trans('delivery::panel.currency_override_saved'));
-    }
-
-    public function storePickupPoint(Request $request, DeliveryMethod $deliveryMethod, ManageDeliveryMethods $manager): RedirectResponse
-    {
-        $manager->addPickupPoint($deliveryMethod, $this->validatedPickupPoint($request));
-
-        return back()->with('status', trans('delivery::panel.pickup_point_added'));
-    }
-
-    public function updatePickupPoint(Request $request, DeliveryMethod $deliveryMethod, DeliveryPickupPoint $pickupPoint, ManageDeliveryMethods $manager): RedirectResponse
-    {
-        $manager->updatePickupPoint($pickupPoint, $this->validatedPickupPoint($request));
-
-        return back()->with('status', trans('delivery::panel.pickup_point_saved'));
-    }
-
-    public function destroyPickupPoint(DeliveryMethod $deliveryMethod, DeliveryPickupPoint $pickupPoint, ManageDeliveryMethods $manager): RedirectResponse
-    {
-        $manager->removePickupPoint($pickupPoint);
-
-        return back()->with('status', trans('delivery::panel.pickup_point_removed'));
+        return $presented;
     }
 
     /** @return array<string, mixed> */
@@ -232,12 +243,6 @@ final class DeliveryController extends Controller
         }
 
         return $data;
-    }
-
-    /** @return array<string, mixed> */
-    private function validatedPickupPoint(Request $request): array
-    {
-        return $request->validate($this->pickupPointRules());
     }
 
     /** @return array<string, list<string>> */

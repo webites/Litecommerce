@@ -30,6 +30,7 @@ return [
     'delivery_line_suffix' => ' — delivery',
     'total' => 'Total',
     'shipping_address' => 'Shipping address',
+    'buyer_details' => 'Buyer details',
     'delivery_method' => 'Delivery method',
     'no_delivery_digital' => 'No delivery (digital product)',
     'payment' => 'Payment',

@@ -111,7 +111,7 @@ final class PickupFulfillmentTest extends TestCase
 
         $variables = EmailMessage::query()->where('definition_key', 'core.order_ready_for_pickup')->firstOrFail()->variables;
         $this->assertSame('Sklep', $variables['pickup_name']);
-        $this->assertSame('Testowa 1, 00-001 Warszawa', $variables['pickup_address']);
+        $this->assertSame('Testowa 1, 00-001 Warszawa, Polska', $variables['pickup_address']);
         $this->assertSame('Wejście od podwórza', $variables['pickup_instructions']);
         $this->assertNotSame('', $variables['pickup_deadline']);
     }
@@ -251,7 +251,7 @@ final class PickupFulfillmentTest extends TestCase
         $this->assertSame('ready_for_pickup', $this->delivery($second)->fulfillment_state);
     }
 
-    public function test_a_failing_stock_settlement_rolls_back_the_recorded_payment(): void
+    public function test_an_expired_reservation_blocks_the_hand_over_but_keeps_the_received_payment_as_late(): void
     {
         $orderId = $this->placeOrder('core.pay_on_pickup');
         $this->fulfillment()->markReadyForPickup($orderId, $this->actor(), $this->inDays(3));
@@ -264,9 +264,10 @@ final class PickupFulfillmentTest extends TestCase
             $this->assertSame(InvalidFulfillmentTransitionException::STOCK_UNAVAILABLE, $exception->reason);
         }
 
-        $this->assertSame('unpaid', DB::table('orders')->where('id', $orderId)->value('payment_status'));
+        $this->assertSame('late_payment', DB::table('orders')->where('id', $orderId)->value('payment_status'));
         $this->assertSame('ready_for_pickup', $this->delivery($orderId)->fulfillment_state);
-        $this->assertDatabaseMissing('payment_attempts', ['provider_transaction_id' => 'manual:KP-18', 'status' => 'succeeded']);
+        $this->assertDatabaseHas('payment_attempts', ['provider_transaction_id' => 'manual:KP-18', 'status' => 'late_payment']);
+        $this->assertDatabaseHas('order_outbox_events', ['order_id' => $orderId, 'event_type' => 'LatePaymentReceived']);
     }
 
     public function test_an_uncollected_pay_on_pickup_order_lapses_after_its_deadline_and_frees_the_stock(): void
